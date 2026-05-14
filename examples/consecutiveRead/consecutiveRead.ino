@@ -60,8 +60,7 @@ DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
 void setup()
 {
   Serial.begin(115200);
-  while (!Se
-    rial) {
+  while (!Serial) {
     delay(100);
   }
 
