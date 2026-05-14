@@ -49,19 +49,19 @@ const uint8_t ADDR = 0x57;
  *     RX     |              TX                |     Serial1 TX1      |     5     |   5/D6  |  26/D3|     X      |  tx1  |
  *     TX     |              RX                |     Serial1 RX1      |     4     |   4/D7  |  25/D2|     X      |  rx1  |
  * ----------------------------------------------------------------------------------------------------------------------*/
-  #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
-    #include <SoftwareSerial.h>
-    SoftwareSerial mySerial(/*rx =*/4, /*tx =*/5);
-    DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
-  #elif defined(ESP32)
-    DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
-  #else
-    DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
-  #endif
-#elif defined(BMV080_COMM_I2C)
-  DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+#if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
+#include <SoftwareSerial.h>
+SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
+DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
+#elif defined(ESP32)
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
 #else
-  #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
+#endif
+#elif defined(BMV080_COMM_I2C)
+DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+#else
+#error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
 #endif
 
 void setup()

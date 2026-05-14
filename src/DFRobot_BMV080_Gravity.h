@@ -14,23 +14,24 @@
 #ifndef __DFROBOT_BMV080_GRAVITY_H
 #define __DFROBOT_BMV080_GRAVITY_H
 
+#include <math.h>
+#include <stdint.h>
+
 #include "Arduino.h"
 #include "DFRobot_RTU.h"
 #include "Wire.h"
-#include <math.h>
-#include <stdint.h>
 
 // Open this macro to see the detailed running process of the program.
 // #define ENABLE_DBG
 #ifdef ENABLE_DBG
-#define DBG(...)                                                                                                       \
-  {                                                                                                                    \
-    Serial.print("[");                                                                                                \
-    Serial.print(__FUNCTION__);                                                                                        \
-    Serial.print("(): ");                                                                                             \
-    Serial.print(__LINE__);                                                                                            \
-    Serial.print(" ] ");                                                                                              \
-    Serial.println(__VA_ARGS__);                                                                                       \
+#define DBG(...)                 \
+  {                              \
+    Serial.print("[");           \
+    Serial.print(__FUNCTION__);  \
+    Serial.print("(): ");        \
+    Serial.print(__LINE__);      \
+    Serial.print(" ] ");         \
+    Serial.println(__VA_ARGS__); \
   }
 #else
 #define DBG(...)
@@ -42,11 +43,11 @@
 #include "HardwareSerial.h"
 #endif
 
-#define DFRobot_BMV080_GRAVITY_DEFAULT_ADDR 0x57 ///< Default external I2C slave address and Modbus ID.
-#define DFRobot_BMV080_GRAVITY_PID 0x0296        ///< Product ID of DFRobot BMV080 Gravity firmware (SEN0662).
-#define DFRobot_BMV080_GRAVITY_VID 0x3343        ///< VID represents DFRobot.
-#define DFRobot_BMV080_GRAVITY_VERSION 0x1000    ///< Firmware library register version V1.0.0.
-#define DFRobot_BMV080_GRAVITY_REG_MAP_VERSION 0x0003 ///< Expected firmware register map version.
+#define DFRobot_BMV080_GRAVITY_DEFAULT_ADDR    0x57      ///< Default external I2C slave address and Modbus ID.
+#define DFRobot_BMV080_GRAVITY_PID             0x0296    ///< Product ID of DFRobot BMV080 Gravity firmware (SEN0662).
+#define DFRobot_BMV080_GRAVITY_VID             0x3343    ///< VID represents DFRobot.
+#define DFRobot_BMV080_GRAVITY_VERSION         0x1000    ///< Firmware library register version V1.0.0.
+#define DFRobot_BMV080_GRAVITY_REG_MAP_VERSION 0x0003    ///< Expected firmware register map version.
 
 /**
  * @def CONTINUOUS_MODE
@@ -59,17 +60,17 @@
  */
 #define DUTY_CYCLE_MODE 1
 
-#define FAST_RESPONSE 1  ///< Fast response algorithm.
-#define BALANCED 2       ///< Balanced algorithm.
-#define HIGH_PRECISION 3 ///< High precision algorithm.
+#define FAST_RESPONSE  1    ///< Fast response algorithm.
+#define BALANCED       2    ///< Balanced algorithm.
+#define HIGH_PRECISION 3    ///< High precision algorithm.
 
 class DFRobot_BMV080_Gravity {
 public:
-#define RET_CODE_OK 0
+#define RET_CODE_OK    0
 #define RET_CODE_ERROR 1
-#define ERR_OK 0
-#define ERR_DATA_BUS 1
-#define ERR_DATA_READ 2
+#define ERR_OK         0
+#define ERR_DATA_BUS   1
+#define ERR_DATA_READ  2
 #define ERR_IC_VERSION 3
 
   /**
@@ -78,9 +79,9 @@ public:
    * @details Action is a transient command and is not saved by the firmware.
    */
   typedef enum {
-    eStart = 1,       ///< Start measurement using REG_HOLDING_MEASURE_MODE
-    eStop = 2,        ///< Stop measurement
-    eReset = 3,       ///< Reset BMV080 and restore default configuration
+    eStart = 1,    ///< Start measurement using REG_HOLDING_MEASURE_MODE
+    eStop  = 2,    ///< Stop measurement
+    eReset = 3,    ///< Reset BMV080 and restore default configuration
   } eAction_t;
 
   /**
@@ -88,8 +89,8 @@ public:
    * @brief BMV080 measurement mode cached in the ESP32 firmware.
    */
   typedef enum {
-    eContinuousMode = CONTINUOUS_MODE, ///< Continuous measurement mode
-    eDutyCycleMode = DUTY_CYCLE_MODE,  ///< Duty-cycle measurement mode
+    eContinuousMode = CONTINUOUS_MODE,    ///< Continuous measurement mode
+    eDutyCycleMode  = DUTY_CYCLE_MODE,    ///< Duty-cycle measurement mode
   } eMeasureMode_t;
 
   /**
@@ -97,9 +98,9 @@ public:
    * @brief BMV080 measurement algorithm selection.
    */
   typedef enum {
-    eFastResponse = FAST_RESPONSE, ///< Fast response algorithm
-    eBalanced = BALANCED,          ///< Balanced algorithm
-    eHighPrecision = HIGH_PRECISION, ///< High precision algorithm
+    eFastResponse  = FAST_RESPONSE,     ///< Fast response algorithm
+    eBalanced      = BALANCED,          ///< Balanced algorithm
+    eHighPrecision = HIGH_PRECISION,    ///< High precision algorithm
   } eMeasurementAlgorithm_t;
 
   /**
@@ -107,14 +108,14 @@ public:
    * @brief UART baud-rate register values used by the firmware.
    */
   typedef enum {
-    e2400 = 0x0001, ///< 2400 bps
-    e4800,          ///< 4800 bps
-    e9600,          ///< 9600 bps
-    e14400,         ///< 14400 bps
-    e19200,         ///< 19200 bps
-    e38400,         ///< 38400 bps
-    e57600,         ///< 57600 bps
-    e115200,        ///< 115200 bps
+    e2400 = 0x0001,    ///< 2400 bps
+    e4800,             ///< 4800 bps
+    e9600,             ///< 9600 bps
+    e14400,            ///< 14400 bps
+    e19200,            ///< 19200 bps
+    e38400,            ///< 38400 bps
+    e57600,            ///< 57600 bps
+    e115200,           ///< 115200 bps
   } eBaud_t;
 
   /**
@@ -122,9 +123,9 @@ public:
    * @brief UART parity field stored in the high byte of holding register 0x0001.
    */
   typedef enum {
-    eParityNone = 0x00, ///< No parity
-    eParityEven = 0x01, ///< Even parity
-    eParityOdd = 0x02,  ///< Odd parity
+    eParityNone = 0x00,    ///< No parity
+    eParityEven = 0x01,    ///< Even parity
+    eParityOdd  = 0x02,    ///< Odd parity
   } eParity_t;
 
   /**
@@ -133,9 +134,9 @@ public:
    * @note ESP32 firmware rejects 0.5 stop bit, so only 1, 1.5 and 2 stop bits are exposed.
    */
   typedef enum {
-    eStopBit1 = 0x01,   ///< 1 stop bit
-    eStopBit1_5 = 0x02, ///< 1.5 stop bits
-    eStopBit2 = 0x03,   ///< 2 stop bits
+    eStopBit1   = 0x01,    ///< 1 stop bit
+    eStopBit1_5 = 0x02,    ///< 1.5 stop bits
+    eStopBit2   = 0x03,    ///< 2 stop bits
   } eStopBit_t;
 
   /**
@@ -143,12 +144,12 @@ public:
    * @brief Runtime state reported by input register 0x0004.
    */
   typedef enum {
-    eRunStateBoot = 0,                ///< Boot state
-    eRunStateReady = 1,               ///< Ready state
-    eRunStateMeasuringContinuous = 2, ///< Continuous measurement active
-    eRunStateMeasuringDuty = 3,       ///< Duty-cycle measurement active
-    eRunStateStopped = 4,             ///< Measurement stopped
-    eRunStateError = 5,               ///< Error state
+    eRunStateBoot                = 0,    ///< Boot state
+    eRunStateReady               = 1,    ///< Ready state
+    eRunStateMeasuringContinuous = 2,    ///< Continuous measurement active
+    eRunStateMeasuringDuty       = 3,    ///< Duty-cycle measurement active
+    eRunStateStopped             = 4,    ///< Measurement stopped
+    eRunStateError               = 5,    ///< Error state
   } eRunState_t;
 
   /**
@@ -156,20 +157,20 @@ public:
    * @brief PM data and state flags cached by the ESP32 firmware.
    */
   typedef struct {
-    float PM1;                  ///< PM1.0 concentration (ug/m3)
-    float PM2_5;                ///< PM2.5 concentration (ug/m3)
-    float PM10;                 ///< PM10 concentration (ug/m3)
-    float runtime;              ///< Sensor runtime (seconds)
-    uint16_t runState;          ///< Current run state (see eRunState_t)
-    uint16_t status;            ///< Last BMV080 SDK status code
-    bool isObstructed;          ///< Obstruction detection flag
-    bool isOutsideMeasurementRange; ///< Outside measurement range flag
-    bool dataReady;             ///< New PM data available
-    bool measuring;             ///< Sensor currently measuring
-    bool paramsVerified;        ///< Parameters confirmed applied to sensor
-    bool valueClamped;          ///< Reserved compatibility flag (currently always false in float-register map)
-    bool valueInvalid;          ///< Non-finite float from firmware side was sanitized before register write
-    uint16_t sampleSeq;         ///< Sample sequence number, increments each new measurement
+    float    PM1;                          ///< PM1.0 concentration (ug/m3)
+    float    PM2_5;                        ///< PM2.5 concentration (ug/m3)
+    float    PM10;                         ///< PM10 concentration (ug/m3)
+    float    runtime;                      ///< Sensor runtime (seconds)
+    uint16_t runState;                     ///< Current run state (see eRunState_t)
+    uint16_t status;                       ///< Last BMV080 SDK status code
+    bool     isObstructed;                 ///< Obstruction detection flag
+    bool     isOutsideMeasurementRange;    ///< Outside measurement range flag
+    bool     dataReady;                    ///< New PM data available
+    bool     measuring;                    ///< Sensor currently measuring
+    bool     paramsVerified;               ///< Parameters confirmed applied to sensor
+    bool     valueClamped;                 ///< Reserved compatibility flag (currently always false in float-register map)
+    bool     valueInvalid;                 ///< Non-finite float from firmware side was sanitized before register write
+    uint16_t sampleSeq;                    ///< Sample sequence number, increments each new measurement
   } sBmv080Data_t;
 
   DFRobot_BMV080_Gravity(void);
@@ -406,61 +407,61 @@ public:
 
 protected:
   virtual uint8_t writeHoldingReg(uint16_t reg, const uint16_t *data, uint16_t count) = 0;
-  virtual uint8_t readHoldingReg(uint16_t reg, uint16_t *data, uint16_t count) = 0;
-  virtual uint8_t readInputReg(uint16_t reg, uint16_t *data, uint16_t count) = 0;
+  virtual uint8_t readHoldingReg(uint16_t reg, uint16_t *data, uint16_t count)        = 0;
+  virtual uint8_t readInputReg(uint16_t reg, uint16_t *data, uint16_t count)          = 0;
 
-  bool readInputValue(uint16_t reg, uint16_t &value);
-  bool readHoldingValue(uint16_t reg, uint16_t &value);
-  uint8_t writeHoldingValue(uint16_t reg, uint16_t value);
-  uint8_t writeHoldingValues(uint16_t reg, const uint16_t *data, uint16_t count);
+  bool            readInputValue(uint16_t reg, uint16_t &value);
+  bool            readHoldingValue(uint16_t reg, uint16_t &value);
+  uint8_t         writeHoldingValue(uint16_t reg, uint16_t value);
+  uint8_t         writeHoldingValues(uint16_t reg, const uint16_t *data, uint16_t count);
   static uint32_t baudRegToValue(uint16_t baudReg);
 
-  uint8_t _lastError;
+  uint8_t       _lastError;
   sBmv080Data_t _data;
 
 private:
   uint8_t writeAction(eAction_t action);
 
   enum {
-    REG_INPUT_PID = 0x0000,              ///< Input: Product ID
-    REG_INPUT_VID = 0x0001,              ///< Input: Vendor ID
-    REG_INPUT_VERSION = 0x0002,          ///< Input: Firmware version
-    REG_INPUT_REG_MAP_VERSION = 0x0003,  ///< Input: Register map version
-    REG_INPUT_RUN_STATE = 0x0004,        ///< Input: Run state
-    REG_INPUT_LAST_STATUS = 0x0005,      ///< Input: Last SDK status
-    REG_INPUT_PM1_F32_HI = 0x0006,       ///< Input: PM1.0 float32 high word
-    REG_INPUT_PM1_F32_LO = 0x0007,       ///< Input: PM1.0 float32 low word
-    REG_INPUT_PM25_F32_HI = 0x0008,      ///< Input: PM2.5 float32 high word
-    REG_INPUT_PM25_F32_LO = 0x0009,      ///< Input: PM2.5 float32 low word
-    REG_INPUT_PM10_F32_HI = 0x000A,      ///< Input: PM10 float32 high word
-    REG_INPUT_PM10_F32_LO = 0x000B,      ///< Input: PM10 float32 low word
-    REG_INPUT_RUNTIME_F32_HI = 0x000C,   ///< Input: Runtime float32 high word
-    REG_INPUT_RUNTIME_F32_LO = 0x000D,   ///< Input: Runtime float32 low word
-    REG_INPUT_FLAGS = 0x000E,            ///< Input: Status flags
-    REG_INPUT_SAMPLE_SEQ = 0x000F,       ///< Input: Sample sequence counter
-    REG_INPUT_DRIVER_MAJOR = 0x0010,     ///< Input: Driver major version
-    REG_INPUT_DRIVER_MINOR = 0x0011,     ///< Input: Driver minor version
-    REG_INPUT_DRIVER_PATCH = 0x0012,     ///< Input: Driver patch version
-    REG_INPUT_SENSOR_ID0 = 0x0013,       ///< Input: Sensor ID (first word)
+    REG_INPUT_PID             = 0x0000,    ///< Input: Product ID
+    REG_INPUT_VID             = 0x0001,    ///< Input: Vendor ID
+    REG_INPUT_VERSION         = 0x0002,    ///< Input: Firmware version
+    REG_INPUT_REG_MAP_VERSION = 0x0003,    ///< Input: Register map version
+    REG_INPUT_RUN_STATE       = 0x0004,    ///< Input: Run state
+    REG_INPUT_LAST_STATUS     = 0x0005,    ///< Input: Last SDK status
+    REG_INPUT_PM1_F32_HI      = 0x0006,    ///< Input: PM1.0 float32 high word
+    REG_INPUT_PM1_F32_LO      = 0x0007,    ///< Input: PM1.0 float32 low word
+    REG_INPUT_PM25_F32_HI     = 0x0008,    ///< Input: PM2.5 float32 high word
+    REG_INPUT_PM25_F32_LO     = 0x0009,    ///< Input: PM2.5 float32 low word
+    REG_INPUT_PM10_F32_HI     = 0x000A,    ///< Input: PM10 float32 high word
+    REG_INPUT_PM10_F32_LO     = 0x000B,    ///< Input: PM10 float32 low word
+    REG_INPUT_RUNTIME_F32_HI  = 0x000C,    ///< Input: Runtime float32 high word
+    REG_INPUT_RUNTIME_F32_LO  = 0x000D,    ///< Input: Runtime float32 low word
+    REG_INPUT_FLAGS           = 0x000E,    ///< Input: Status flags
+    REG_INPUT_SAMPLE_SEQ      = 0x000F,    ///< Input: Sample sequence counter
+    REG_INPUT_DRIVER_MAJOR    = 0x0010,    ///< Input: Driver major version
+    REG_INPUT_DRIVER_MINOR    = 0x0011,    ///< Input: Driver minor version
+    REG_INPUT_DRIVER_PATCH    = 0x0012,    ///< Input: Driver patch version
+    REG_INPUT_SENSOR_ID0      = 0x0013,    ///< Input: Sensor ID (first word)
 
-    REG_HOLDING_BAUDRATE = 0x0000,       ///< Holding: Baud rate enum
-    REG_HOLDING_VERIFY_STOP = 0x0001,    ///< Holding: Parity/stop bits
-    REG_HOLDING_ACTION = 0x0002,         ///< Holding: Action command
-    REG_HOLDING_MEASURE_MODE = 0x0003,   ///< Holding: Measurement mode
-    REG_HOLDING_ALGORITHM = 0x0004,      ///< Holding: Algorithm selection
-    REG_HOLDING_OBSTRUCTION = 0x0005,    ///< Holding: Obstruction detection
-    REG_HOLDING_VIBRATION = 0x0006,      ///< Holding: Vibration filtering
-    REG_HOLDING_INTEGRATION_F32_HI = 0x0007, ///< Holding: Integration time float32 high word
-    REG_HOLDING_INTEGRATION_F32_LO = 0x0008, ///< Holding: Integration time float32 low word
-    REG_HOLDING_DUTY_PERIOD_S = 0x0009,  ///< Holding: Duty cycle period
+    REG_HOLDING_BAUDRATE           = 0x0000,    ///< Holding: Baud rate enum
+    REG_HOLDING_VERIFY_STOP        = 0x0001,    ///< Holding: Parity/stop bits
+    REG_HOLDING_ACTION             = 0x0002,    ///< Holding: Action command
+    REG_HOLDING_MEASURE_MODE       = 0x0003,    ///< Holding: Measurement mode
+    REG_HOLDING_ALGORITHM          = 0x0004,    ///< Holding: Algorithm selection
+    REG_HOLDING_OBSTRUCTION        = 0x0005,    ///< Holding: Obstruction detection
+    REG_HOLDING_VIBRATION          = 0x0006,    ///< Holding: Vibration filtering
+    REG_HOLDING_INTEGRATION_F32_HI = 0x0007,    ///< Holding: Integration time float32 high word
+    REG_HOLDING_INTEGRATION_F32_LO = 0x0008,    ///< Holding: Integration time float32 low word
+    REG_HOLDING_DUTY_PERIOD_S      = 0x0009,    ///< Holding: Duty cycle period
 
-    INPUT_FLAG_OBSTRUCTED = 1U << 0,     ///< Obstruction detected
-    INPUT_FLAG_OUTSIDE_RANGE = 1U << 1,  ///< Outside measurement range
-    INPUT_FLAG_DATA_READY = 1U << 2,     ///< New PM data ready
-    INPUT_FLAG_MEASURING = 1U << 4,      ///< Sensor measuring
-    INPUT_FLAG_PARAMS_VERIFIED = 1U << 6, ///< Parameters verified on sensor
-    INPUT_FLAG_VALUE_CLAMPED = 1U << 8,   ///< PM/runtime value clamped to valid register range
-    INPUT_FLAG_VALUE_INVALID = 1U << 9,   ///< Non-finite PM/runtime input detected and sanitized
+    INPUT_FLAG_OBSTRUCTED      = 1U << 0,    ///< Obstruction detected
+    INPUT_FLAG_OUTSIDE_RANGE   = 1U << 1,    ///< Outside measurement range
+    INPUT_FLAG_DATA_READY      = 1U << 2,    ///< New PM data ready
+    INPUT_FLAG_MEASURING       = 1U << 4,    ///< Sensor measuring
+    INPUT_FLAG_PARAMS_VERIFIED = 1U << 6,    ///< Parameters verified on sensor
+    INPUT_FLAG_VALUE_CLAMPED   = 1U << 8,    ///< PM/runtime value clamped to valid register range
+    INPUT_FLAG_VALUE_INVALID   = 1U << 9,    ///< Non-finite PM/runtime input detected and sanitized
   };
 };
 
@@ -487,10 +488,10 @@ private:
   uint8_t readRegs(uint8_t func, uint16_t reg, uint16_t *data, uint16_t count);
   uint8_t writeSingleReg(uint16_t reg, uint16_t value);
   uint8_t writeMultiRegs(uint16_t reg, const uint16_t *data, uint16_t count);
-  bool transferShortFrame(const uint8_t *request, uint8_t requestLen, uint8_t *response, uint8_t responseLen);
+  bool    transferShortFrame(const uint8_t *request, uint8_t requestLen, uint8_t *response, uint8_t responseLen);
 
   TwoWire *_pWire;
-  uint8_t _i2cAddr;
+  uint8_t  _i2cAddr;
   uint32_t _timeout;
 };
 
@@ -512,8 +513,7 @@ public:
    * @param rxpin MCU RX pin connected to module TX. On ESP32 default is GPIO25.
    * @param txpin MCU TX pin connected to module RX. On ESP32 default is GPIO26.
    */
-  DFRobot_BMV080_Gravity_UART(HardwareSerial *hSerial, uint32_t baud, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_ADDR,
-                              uint8_t rxpin = 0, uint8_t txpin = 0);
+  DFRobot_BMV080_Gravity_UART(HardwareSerial *hSerial, uint32_t baud, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_ADDR, uint8_t rxpin = 0, uint8_t txpin = 0);
 #endif
   virtual ~DFRobot_BMV080_Gravity_UART(void);
 
@@ -531,9 +531,9 @@ private:
   HardwareSerial *_serial;
 #endif
   uint32_t _baud;
-  uint8_t _addr;
-  uint8_t _rxpin;
-  uint8_t _txpin;
+  uint8_t  _addr;
+  uint8_t  _rxpin;
+  uint8_t  _txpin;
 };
 
 #endif

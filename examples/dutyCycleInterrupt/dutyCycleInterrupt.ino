@@ -26,9 +26,9 @@ const uint8_t ADDR = 0x57;
  * Connect the BMV080 module's INT pin to this host MCU pin.
  */
 #if defined(ESP32)
-  #define IRQ_PIN 14
+#define IRQ_PIN 14
 #else
-  #define IRQ_PIN 2
+#define IRQ_PIN 2
 #endif
 
 /**
@@ -47,19 +47,19 @@ void onInterrupt(void)
 }
 
 #if defined(BMV080_COMM_UART)
-  #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
-    #include <SoftwareSerial.h>
-    SoftwareSerial mySerial(/*rx =*/4, /*tx =*/5);
-    DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
-  #elif defined(ESP32)
-    DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
-  #else
-    DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
-  #endif
-#elif defined(BMV080_COMM_I2C)
-  DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+#if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
+#include <SoftwareSerial.h>
+SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
+DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
+#elif defined(ESP32)
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
 #else
-  #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
+#endif
+#elif defined(BMV080_COMM_I2C)
+DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+#else
+#error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
 #endif
 
 void setup()

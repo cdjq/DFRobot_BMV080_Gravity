@@ -41,26 +41,26 @@ const uint8_t ADDR = 0x57;
  *     RX     |              TX                |     Serial1 TX1      |     5     |   5/D6  |  26/D3|     X      |  tx1  |
  *     TX     |              RX                |     Serial1 RX1      |     4     |   4/D7  |  25/D2|     X      |  rx1  |
  * ----------------------------------------------------------------------------------------------------------------------*/
-  #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
-    #include <SoftwareSerial.h>
-    SoftwareSerial mySerial(/*rx =*/4, /*tx =*/5);
-    DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
-  #elif defined(ESP32)
-    DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
-  #else
-    DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
-  #endif
-#elif defined(BMV080_COMM_I2C)
-  DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+#if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
+#include <SoftwareSerial.h>
+SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
+DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
+#elif defined(ESP32)
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
 #else
-  #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
+#endif
+#elif defined(BMV080_COMM_I2C)
+DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+#else
+#error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
 #endif
 
 void setup()
 {
   uint16_t fmtReg = 0;
-  uint8_t parity = 0;
-  uint8_t stop = 0;
+  uint8_t  parity = 0;
+  uint8_t  stop   = 0;
 
   Serial.begin(115200);
   while (!Serial) {
@@ -91,8 +91,7 @@ void setup()
    * Parity:  eParityNone / eParityEven / eParityOdd
    * StopBit: eStopBit1 / eStopBit1_5 / eStopBit2
    */
-  if (sensor.setUartFormat(DFRobot_BMV080_Gravity::eParityNone,
-                           DFRobot_BMV080_Gravity::eStopBit1) == 0) {
+  if (sensor.setUartFormat(DFRobot_BMV080_Gravity::eParityNone, DFRobot_BMV080_Gravity::eStopBit1) == 0) {
     Serial.println("UART format saved (8-N-1).");
   } else {
     Serial.print("Set UART format failed, last error: ");
@@ -112,7 +111,7 @@ void setup()
 
   fmtReg = sensor.getUartFormat();
   parity = (uint8_t)((fmtReg >> 8) & 0xFF);
-  stop = (uint8_t)(fmtReg & 0xFF);
+  stop   = (uint8_t)(fmtReg & 0xFF);
 
   Serial.print("UART Format Register: 0x");
   Serial.println(fmtReg, HEX);
@@ -125,6 +124,4 @@ void setup()
   Serial.println("Restart the module in UART mode to apply the new UART settings.");
 }
 
-void loop()
-{
-}
+void loop() {}
