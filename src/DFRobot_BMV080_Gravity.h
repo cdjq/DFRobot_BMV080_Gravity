@@ -20,8 +20,6 @@
 #include <math.h>
 #include <stdint.h>
 
-
-
 // Open this macro to see the detailed running process of the program.
 // #define ENABLE_DBG
 #ifdef ENABLE_DBG
