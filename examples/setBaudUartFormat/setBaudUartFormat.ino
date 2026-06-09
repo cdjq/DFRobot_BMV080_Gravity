@@ -12,6 +12,7 @@
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
 #include <Wire.h>
+
 #include "DFRobot_BMV080_Gravity.h"
 
 /* >> 1. Please choose your communication method below:

@@ -124,11 +124,11 @@ bool DFRobot_BMV080_Gravity::getData(sData_t *data)
 
 int DFRobot_BMV080_Gravity::setMeasureMode(eMeasureMode_t mode)
 {
-  int      ret          = 0;
-  uint16_t regs[2]      = { 0 };
-  uint16_t targetState  = (mode == eDutyCycleMode) ? eRunStateMeasuringDuty : eRunStateMeasuringContinuous;
-  uint32_t startTime    = 0;
-  uint32_t waitTimeout  = 1000;
+  int      ret         = 0;
+  uint16_t regs[2]     = { 0 };
+  uint16_t targetState = (mode == eDutyCycleMode) ? eRunStateMeasuringDuty : eRunStateMeasuringContinuous;
+  uint32_t startTime   = 0;
+  uint32_t waitTimeout = 1000;
   if ((mode != eContinuousMode) && (mode != eDutyCycleMode)) {
     return -1;
   }
@@ -176,7 +176,7 @@ uint8_t DFRobot_BMV080_Gravity::writeAction(eAction_t action)
 
 int DFRobot_BMV080_Gravity::setIntegrationTime(float integration_time)
 {
-  uint16_t data[2] = { 0 };
+  uint16_t data[2]    = { 0 };
   uint16_t dutyPeriod = getDutyCyclingPeriod();
   if (isnan(integration_time) || isinf(integration_time) || (integration_time <= 0.0f)) {
     return -1;
@@ -201,8 +201,7 @@ float DFRobot_BMV080_Gravity::getIntegrationTime(void)
 int DFRobot_BMV080_Gravity::setDutyCyclingPeriod(uint16_t duty_cycling_period)
 {
   float integrationTime = getIntegrationTime();
-  if ((duty_cycling_period < 3) || isnan(integrationTime) || isinf(integrationTime) ||
-      (((float)duty_cycling_period) < (integrationTime + 2.0f))) {
+  if ((duty_cycling_period < 3) || isnan(integrationTime) || isinf(integrationTime) || (((float)duty_cycling_period) < (integrationTime + 2.0f))) {
     return -1;
   }
   return writeHoldingValue(REG_HOLDING_DUTY_PERIOD_S, duty_cycling_period);

@@ -33,7 +33,7 @@ sensor = DFRobot_BMV080_Gravity_I2C(I2C_BUS, ADDR)
 
 def setup():
   '''!
-    @brief Configure duty-cycle parameters and start duty-cycle measurement
+  @brief Configure duty-cycle parameters and start duty-cycle measurement
   '''
   while not sensor.begin():
     print("Sensor init failed.")
@@ -62,7 +62,7 @@ def setup():
 
 def loop():
   '''!
-    @brief Read and print PM data when a new sample is available
+  @brief Read and print PM data when a new sample is available
   '''
   data = sensor.getData()
   if data is not None:

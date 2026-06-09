@@ -25,7 +25,7 @@ sensor = DFRobot_BMV080_Gravity_I2C(I2C_BUS, I2C_ADDR)
 
 def setup():
   '''!
-    @brief Save UART baud-rate and frame-format settings to module NVS
+  @brief Save UART baud-rate and frame-format settings to module NVS
   '''
   while not sensor.begin():
     print("Sensor init failed.")

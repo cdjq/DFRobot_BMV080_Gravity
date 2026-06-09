@@ -39,7 +39,7 @@ except ImportError:
 @dataclass
 class sData_t:
   '''!
-    @brief Cached PM data and state flags.
+  @brief Cached PM data and state flags.
   '''
 
   PM1: float = 0.0
@@ -146,10 +146,10 @@ class DFRobot_BMV080_Gravity(object):
 
   def begin(self) -> bool:
     '''!
-      @brief Initialize the module and check firmware compatibility
-      @return Initialization status
-      @retval True Initialization succeeded
-      @retval False Initialization failed
+    @brief Initialize the module and check firmware compatibility
+    @return Initialization status
+    @retval True Initialization succeeded
+    @retval False Initialization failed
     '''
     for _ in range(8):
       regs = self.readInputReg(self.REG_INPUT_PID, 4)
@@ -157,9 +157,7 @@ class DFRobot_BMV080_Gravity(object):
         pid = regs[0]
         vid = regs[1]
         reg_map = regs[3]
-        if (vid == self._EXPECTED_VID and
-            pid == self._EXPECTED_PID and
-            reg_map == self._EXPECTED_REG_MAP_VERSION):
+        if vid == self._EXPECTED_VID and pid == self._EXPECTED_PID and reg_map == self._EXPECTED_REG_MAP_VERSION:
           return True
       time.sleep(0.01)
 
@@ -196,8 +194,8 @@ class DFRobot_BMV080_Gravity(object):
 
   def getData(self) -> Optional[sData_t]:
     '''!
-      @brief Read particulate matter measurement data
-      @return sData_t object when new data is available, otherwise None
+    @brief Read particulate matter measurement data
+    @return sData_t object when new data is available, otherwise None
     '''
     data = self._readData()
     if data is None or not data.dataReady:
@@ -206,16 +204,16 @@ class DFRobot_BMV080_Gravity(object):
 
   def setMeasureMode(self, mode: int) -> int:
     '''!
-      @brief Set measurement mode and start measurement
-      @param mode Measurement mode
-      @n          CONTINUOUS_MODE: Continuous measurement mode
-      @n          DUTY_CYCLE_MODE: Duty-cycle measurement mode
-      @return Setting status
-      @retval 0 Setting succeeded
-      @retval -1 Invalid parameter
-      @retval 1 Communication error or firmware returned an error
-      @retval 2 Data read error or start-state timeout
-      @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
+    @brief Set measurement mode and start measurement
+    @param mode Measurement mode
+    @n          CONTINUOUS_MODE: Continuous measurement mode
+    @n          DUTY_CYCLE_MODE: Duty-cycle measurement mode
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval -1 Invalid parameter
+    @retval 1 Communication error or firmware returned an error
+    @retval 2 Data read error or start-state timeout
+    @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
     '''
     if mode not in (self.CONTINUOUS_MODE, self.DUTY_CYCLE_MODE):
       return -1
@@ -242,33 +240,33 @@ class DFRobot_BMV080_Gravity(object):
 
   def stopMeasurement(self) -> bool:
     '''!
-      @brief Stop the current measurement
-      @return Stop command execution status
-      @retval True Stop command succeeded
-      @retval False Stop command failed
+    @brief Stop the current measurement
+    @return Stop command execution status
+    @retval True Stop command succeeded
+    @retval False Stop command failed
     '''
     return self._writeHoldingValue(self.REG_HOLDING_ACTION, self.ACTION_STOP) == self.RET_CODE_OK
 
   def reset(self) -> bool:
     '''!
-      @brief Reset the sensor and restore default configuration
-      @return Reset command execution status
-      @retval True Reset command succeeded
-      @retval False Reset command failed
+    @brief Reset the sensor and restore default configuration
+    @return Reset command execution status
+    @retval True Reset command succeeded
+    @retval False Reset command failed
     '''
     return self._writeHoldingValue(self.REG_HOLDING_ACTION, self.ACTION_RESET) == self.RET_CODE_OK
 
   def setIntegrationTime(self, integration_time: float) -> int:
     '''!
-      @brief Set measurement integration time
-      @param integration_time Integration time in seconds
-      @n                      The value must be greater than 0 and must not be NAN or INF.
-      @return Setting status
-      @retval 0 Setting succeeded
-      @retval -1 Invalid parameter or duty-cycle period constraint was not met
-      @retval 1 Communication error or firmware returned an error
-      @retval 2 Data read error
-      @note When increasing integration time beyond the current period margin, set duty-cycle period first.
+    @brief Set measurement integration time
+    @param integration_time Integration time in seconds
+    @n                      The value must be greater than 0 and must not be NAN or INF.
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval -1 Invalid parameter or duty-cycle period constraint was not met
+    @retval 1 Communication error or firmware returned an error
+    @retval 2 Data read error
+    @note When increasing integration time beyond the current period margin, set duty-cycle period first.
     '''
     duty_period = self._getDutyCyclingPeriod()
     if not math.isfinite(integration_time) or integration_time <= 0.0:
@@ -296,15 +294,15 @@ class DFRobot_BMV080_Gravity(object):
 
   def setDutyCyclingPeriod(self, duty_cycling_period: int) -> int:
     '''!
-      @brief Set duty-cycle measurement period
-      @param duty_cycling_period Duty-cycle measurement period in seconds
-      @n                         The value must satisfy current integration time plus 2 seconds.
-      @return Setting status
-      @retval 0 Setting succeeded
-      @retval -1 Invalid parameter or integration time read failed
-      @retval 1 Communication error or firmware returned an error
-      @retval 2 Data read error
-      @note When shortening duty-cycle period, lower integration time first if needed.
+    @brief Set duty-cycle measurement period
+    @param duty_cycling_period Duty-cycle measurement period in seconds
+    @n                         The value must satisfy current integration time plus 2 seconds.
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval -1 Invalid parameter or integration time read failed
+    @retval 1 Communication error or firmware returned an error
+    @retval 2 Data read error
+    @note When shortening duty-cycle period, lower integration time first if needed.
     '''
     integration_time = self._getIntegrationTime()
     if duty_cycling_period <= 0 or not math.isfinite(integration_time) or float(duty_cycling_period) < (integration_time + 2.0):
@@ -313,9 +311,9 @@ class DFRobot_BMV080_Gravity(object):
 
   def getIntegrationTime(self) -> float:
     '''!
-      @brief Read measurement integration time
-      @return Integration time in seconds
-      @retval math.nan Read failed
+    @brief Read measurement integration time
+    @return Integration time in seconds
+    @retval math.nan Read failed
     '''
     return self._getIntegrationTime()
 
@@ -325,31 +323,31 @@ class DFRobot_BMV080_Gravity(object):
 
   def getDutyCyclingPeriod(self) -> int:
     '''!
-      @brief Read duty-cycle measurement period
-      @return Duty-cycle measurement period in seconds
-      @retval 0 Read failed
+    @brief Read duty-cycle measurement period
+    @return Duty-cycle measurement period in seconds
+    @retval 0 Read failed
     '''
     return self._getDutyCyclingPeriod()
 
   def setObstructionDetection(self, enable: bool) -> bool:
     '''!
-      @brief Enable or disable obstruction detection
-      @param enable Obstruction detection switch
-      @n            True: Enable obstruction detection
-      @n            False: Disable obstruction detection
-      @return Setting status
-      @retval True Setting succeeded
-      @retval False Setting failed
+    @brief Enable or disable obstruction detection
+    @param enable Obstruction detection switch
+    @n            True: Enable obstruction detection
+    @n            False: Disable obstruction detection
+    @return Setting status
+    @retval True Setting succeeded
+    @retval False Setting failed
     '''
     return self._writeHoldingValue(self.REG_HOLDING_OBSTRUCTION, 1 if enable else 0) == self.RET_CODE_OK
 
   def getObstructionDetection(self) -> int:
     '''!
-      @brief Read obstruction detection switch state
-      @return Obstruction detection switch state
-      @retval 1 Enabled
-      @retval 0 Disabled
-      @retval -1 Read failed
+    @brief Read obstruction detection switch state
+    @return Obstruction detection switch state
+    @retval 1 Enabled
+    @retval 0 Disabled
+    @retval -1 Read failed
     '''
     value = self._readHoldingValue(self.REG_HOLDING_OBSTRUCTION)
     if value is None:
@@ -358,23 +356,23 @@ class DFRobot_BMV080_Gravity(object):
 
   def setVibrationFiltering(self, enable: bool) -> bool:
     '''!
-      @brief Enable or disable vibration filtering
-      @param enable Vibration filtering switch
-      @n            True: Enable vibration filtering
-      @n            False: Disable vibration filtering
-      @return Setting status
-      @retval True Setting succeeded
-      @retval False Setting failed
+    @brief Enable or disable vibration filtering
+    @param enable Vibration filtering switch
+    @n            True: Enable vibration filtering
+    @n            False: Disable vibration filtering
+    @return Setting status
+    @retval True Setting succeeded
+    @retval False Setting failed
     '''
     return self._writeHoldingValue(self.REG_HOLDING_VIBRATION, 1 if enable else 0) == self.RET_CODE_OK
 
   def getVibrationFiltering(self) -> int:
     '''!
-      @brief Read vibration filtering switch state
-      @return Vibration filtering switch state
-      @retval 1 Enabled
-      @retval 0 Disabled
-      @retval -1 Read failed
+    @brief Read vibration filtering switch state
+    @return Vibration filtering switch state
+    @retval 1 Enabled
+    @retval 0 Disabled
+    @retval -1 Read failed
     '''
     value = self._readHoldingValue(self.REG_HOLDING_VIBRATION)
     if value is None:
@@ -383,17 +381,17 @@ class DFRobot_BMV080_Gravity(object):
 
   def setMeasurementAlgorithm(self, measurement_algorithm: int) -> int:
     '''!
-      @brief Set measurement algorithm
-      @param measurement_algorithm Measurement algorithm
-      @n                           FAST_RESPONSE: Fast response algorithm
-      @n                           BALANCED: Balanced algorithm
-      @n                           HIGH_PRECISION: High precision algorithm
-      @return Setting status
-      @retval 0 Setting succeeded
-      @retval -1 Invalid parameter
-      @retval 1 Communication error or firmware returned an error
-      @retval 2 Data read error
-      @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
+    @brief Set measurement algorithm
+    @param measurement_algorithm Measurement algorithm
+    @n                           FAST_RESPONSE: Fast response algorithm
+    @n                           BALANCED: Balanced algorithm
+    @n                           HIGH_PRECISION: High precision algorithm
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval -1 Invalid parameter
+    @retval 1 Communication error or firmware returned an error
+    @retval 2 Data read error
+    @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
     '''
     if measurement_algorithm < self.FAST_RESPONSE or measurement_algorithm > self.HIGH_PRECISION:
       return -1
@@ -401,12 +399,12 @@ class DFRobot_BMV080_Gravity(object):
 
   def getMeasurementAlgorithm(self) -> int:
     '''!
-      @brief Read measurement algorithm
-      @return Current measurement algorithm
-      @retval FAST_RESPONSE Fast response algorithm
-      @retval BALANCED Balanced algorithm
-      @retval HIGH_PRECISION High precision algorithm
-      @retval 0 Read failed or register value is invalid
+    @brief Read measurement algorithm
+    @return Current measurement algorithm
+    @retval FAST_RESPONSE Fast response algorithm
+    @retval BALANCED Balanced algorithm
+    @retval HIGH_PRECISION High precision algorithm
+    @retval 0 Read failed or register value is invalid
     '''
     value = self._readHoldingValue(self.REG_HOLDING_ALGORITHM)
     if value is None:
@@ -417,14 +415,14 @@ class DFRobot_BMV080_Gravity(object):
 
   def setBaud(self, baud: int) -> int:
     '''!
-      @brief Save UART baud-rate setting to firmware NVS
-      @param baud Baud-rate enum value
-      @n          e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200
-      @return Setting status
-      @retval 0 Setting succeeded
-      @retval 1 Invalid parameter, communication error or firmware returned an error
-      @retval 2 Data read error
-      @note The new baud rate takes effect after module restart.
+    @brief Save UART baud-rate setting to firmware NVS
+    @param baud Baud-rate enum value
+    @n          e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval 1 Invalid parameter, communication error or firmware returned an error
+    @retval 2 Data read error
+    @note The new baud rate takes effect after module restart.
     '''
     if baud < self.e2400 or baud > self.e115200:
       return self.RET_CODE_ERROR
@@ -432,30 +430,30 @@ class DFRobot_BMV080_Gravity(object):
 
   def getBaud(self) -> int:
     '''!
-      @brief Read UART baud rate
-      @return Current baud rate in bps
-      @retval 0 Read failed
-      @note Invalid register values are parsed as the default 9600 bps.
+    @brief Read UART baud rate
+    @return Current baud rate in bps
+    @retval 0 Read failed
+    @note Invalid register values are parsed as the default 9600 bps.
     '''
     value = self._readHoldingValue(self.REG_HOLDING_BAUDRATE)
     return self._baudRegToValue(value) if value is not None else 0
 
   def setUartFormat(self, parity: int, stop_bit: int = eStopBit1) -> int:
     '''!
-      @brief Save UART parity and stop-bit setting to firmware NVS
-      @param parity Parity configuration
-      @n            eParityNone: No parity
-      @n            eParityEven: Even parity
-      @n            eParityOdd: Odd parity
-      @param stop_bit Stop-bit configuration
-      @n              eStopBit1: 1 stop bit
-      @n              eStopBit1_5: 1.5 stop bits
-      @n              eStopBit2: 2 stop bits
-      @return Setting status
-      @retval 0 Setting succeeded
-      @retval 1 Invalid parameter, communication error or firmware returned an error
-      @retval 2 Data read error
-      @note The new UART frame format takes effect after module restart.
+    @brief Save UART parity and stop-bit setting to firmware NVS
+    @param parity Parity configuration
+    @n            eParityNone: No parity
+    @n            eParityEven: Even parity
+    @n            eParityOdd: Odd parity
+    @param stop_bit Stop-bit configuration
+    @n              eStopBit1: 1 stop bit
+    @n              eStopBit1_5: 1.5 stop bits
+    @n              eStopBit2: 2 stop bits
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval 1 Invalid parameter, communication error or firmware returned an error
+    @retval 2 Data read error
+    @note The new UART frame format takes effect after module restart.
     '''
     if parity > self.eParityOdd or stop_bit < self.eStopBit1 or stop_bit > self.eStopBit2:
       return self.RET_CODE_ERROR
@@ -465,10 +463,10 @@ class DFRobot_BMV080_Gravity(object):
 
   def getUartFormat(self) -> int:
     '''!
-      @brief Read UART parity and stop-bit register value
-      @return UART frame-format register value
-      @retval 0 Read failed
-      @note The high byte is parity and the low byte is stop bits.
+    @brief Read UART parity and stop-bit register value
+    @return UART frame-format register value
+    @retval 0 Read failed
+    @note The high byte is parity and the low byte is stop bits.
     '''
     value = self._readHoldingValue(self.REG_HOLDING_VERIFY_STOP)
     return value if value is not None else 0
@@ -540,10 +538,10 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
 
   def begin(self) -> bool:
     '''!
-      @brief Initialize I2C communication and check firmware compatibility
-      @return Initialization status
-      @retval True Initialization succeeded
-      @retval False Initialization failed
+    @brief Initialize I2C communication and check firmware compatibility
+    @return Initialization status
+    @retval True Initialization succeeded
+    @retval False Initialization failed
     '''
     if not self._ensureBus():
       return False
@@ -551,7 +549,7 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
 
   def close(self) -> None:
     '''!
-      @brief Close the I2C bus handle
+    @brief Close the I2C bus handle
     '''
     if self._bus is not None:
       try:
@@ -562,8 +560,8 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
 
   def setTimeoutTimeMs(self, timeout_ms: int) -> None:
     '''!
-      @brief Set I2C communication timeout
-      @param timeout_ms Timeout in milliseconds
+    @brief Set I2C communication timeout
+    @param timeout_ms Timeout in milliseconds
     '''
     if timeout_ms < 1:
       timeout_ms = 1
@@ -762,7 +760,7 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
 
 class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
   '''!
-    @brief UART Modbus RTU transport based on DFRobot_RTU.py.
+  @brief UART Modbus RTU transport based on DFRobot_RTU.py.
   '''
 
   def __init__(
@@ -779,8 +777,8 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
 
   def setTimeoutTimeS(self, timeout_s: float) -> None:
     '''!
-      @brief Set UART Modbus RTU timeout
-      @param timeout_s Timeout in seconds
+    @brief Set UART Modbus RTU timeout
+    @param timeout_s Timeout in seconds
     '''
     self.set_timout_time_s(timeout_s)
 

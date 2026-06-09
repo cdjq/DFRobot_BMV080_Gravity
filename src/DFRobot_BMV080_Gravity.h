@@ -16,10 +16,9 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include "DFRobot_RTU.h"
 #include <math.h>
 #include <stdint.h>
-
+#include "DFRobot_RTU.h"
 
 // Open this macro to see the detailed running process of the program.
 // #define ENABLE_DBG
@@ -43,8 +42,8 @@
 #include "HardwareSerial.h"
 #endif
 
-#define DFRobot_BMV080_GRAVITY_DEFAULT_I2C_ADDR 0x57     ///< Default external I2C slave address.
-#define DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR 0x57     ///< Factory default UART Modbus RTU slave address.
+#define DFRobot_BMV080_GRAVITY_DEFAULT_I2C_ADDR 0x57    ///< Default external I2C slave address.
+#define DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR 0x57    ///< Factory default UART Modbus RTU slave address.
 
 class DFRobot_BMV080_Gravity {
 public:
@@ -260,7 +259,6 @@ public:
    */
   uint16_t getDutyCyclingPeriod(void);
 
-
   /**
    * @fn setObstructionDetection
    * @brief Enable or disable obstruction detection.
@@ -411,7 +409,7 @@ protected:
    * @retval 1 Invalid parameter, communication error or firmware returned an error.
    * @retval 2 Data read error.
    */
-  virtual uint8_t readHoldingReg(uint16_t reg, uint16_t *data, uint16_t count)        = 0;
+  virtual uint8_t readHoldingReg(uint16_t reg, uint16_t *data, uint16_t count) = 0;
 
   /**
    * @fn readInputReg
@@ -425,7 +423,7 @@ protected:
    * @retval 1 Invalid parameter, communication error or firmware returned an error.
    * @retval 2 Data read error.
    */
-  virtual uint8_t readInputReg(uint16_t reg, uint16_t *data, uint16_t count)          = 0;
+  virtual uint8_t readInputReg(uint16_t reg, uint16_t *data, uint16_t count) = 0;
 
 private:
   typedef enum {
@@ -458,7 +456,6 @@ private:
    * @retval false Invalid parameter or read failed.
    */
   bool readData(sData_t *data);
-
 
   /**
    * @fn readHoldingValue
@@ -672,7 +669,7 @@ private:
    * @retval true Transfer succeeded.
    * @retval false Transfer failed.
    */
-  bool    transferShortFrame(const uint8_t *request, uint8_t requestLen, uint8_t *response, uint8_t responseLen);
+  bool transferShortFrame(const uint8_t *request, uint8_t requestLen, uint8_t *response, uint8_t responseLen);
 
   TwoWire *_pWire;
   uint8_t  _i2cAddr;

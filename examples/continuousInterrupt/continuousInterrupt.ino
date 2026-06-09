@@ -14,12 +14,12 @@
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
 #include <Wire.h>
+
 #include "DFRobot_BMV080_Gravity.h"
 
 /* >> 1. Please choose your communication method below: */
 // #define BMV080_COMM_UART
 #define BMV080_COMM_I2C
-
 
 /**
  * I2C_ADDR is selected by A0/A1 pins.
