@@ -7,7 +7,7 @@
  * @license     The MIT License (MIT)
  * @author      DFRobot
  * @version     V1.0.0
- * @date        2026-05-11
+ * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
 
@@ -22,7 +22,7 @@
 #define BMV080_I2C_MAX_READ_REGS            14
 #define BMV080_I2C_MAX_WRITE_REGS           13
 #define BMV080_I2C_SHORTFRAME_RETRY         8
-#define BMV080_I2C_SLAVE_SETTLE_MS          20
+#define BMV080_I2C_SLAVE_SETTLE_MS          30
 #define BMV080_I2C_VALIDATE_RETRY           3
 
 static void putBE16(uint16_t data, uint8_t *buf)
@@ -52,124 +52,36 @@ static float wordsToFloat(uint16_t hi, uint16_t lo)
   return value;
 }
 
-DFRobot_BMV080_Gravity::DFRobot_BMV080_Gravity(void) : _lastError(RET_CODE_OK), _data({ 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, false, false, false, false, false, false, false, 0 }) {}
+DFRobot_BMV080_Gravity::DFRobot_BMV080_Gravity(void) : _data({ 0.0f, 0.0f, 0.0f, 0.0f, 0, 0, false, false, false, false, false, false, false, 0 }) {}
 
 DFRobot_BMV080_Gravity::~DFRobot_BMV080_Gravity(void) {}
 
 bool DFRobot_BMV080_Gravity::begin(void)
 {
-  uint16_t regs[2] = { 0 };
+  uint16_t regs[4] = { 0 };
   bool     commOk  = false;
+  uint8_t  ret     = RET_CODE_ERROR;
 
   // Some host/slave pairs may return one stale frame right after boot/mode switch.
   // Retry a few times before concluding transport or ID mismatch.
   for (uint8_t i = 0; i < BMV080_I2C_SHORTFRAME_RETRY; i++) {
-    uint8_t ret = readInputReg(REG_INPUT_PID, regs, 2);
+    ret = readInputReg(REG_INPUT_PID, regs, 4);
     if (ret == RET_CODE_OK) {
       commOk = true;
-      if ((regs[0] == DFRobot_BMV080_GRAVITY_PID) && (regs[1] == DFRobot_BMV080_GRAVITY_VID)) {
-        _lastError = RET_CODE_OK;
+      if ((regs[0] == EXPECTED_PID) && (regs[1] == EXPECTED_VID) && (regs[3] == EXPECTED_REG_MAP_VERSION)) {
         return true;
       }
-    } else {
-      _lastError = ret;
     }
     delay(10);
   }
-
-  if (!commOk) {
-    return false;
-  }
-
-  _lastError = ERR_IC_VERSION;
   return false;
 }
 
-uint16_t DFRobot_BMV080_Gravity::getPID(void)
+bool DFRobot_BMV080_Gravity::readData(sData_t *data)
 {
-  uint16_t data = 0;
-  readInputValue(REG_INPUT_PID, data);
-  return data;
-}
-
-uint16_t DFRobot_BMV080_Gravity::getVID(void)
-{
-  uint16_t data = 0;
-  readInputValue(REG_INPUT_VID, data);
-  return data;
-}
-
-uint16_t DFRobot_BMV080_Gravity::getVersion(void)
-{
-  uint16_t data = 0;
-  readInputValue(REG_INPUT_VERSION, data);
-  return data;
-}
-
-uint16_t DFRobot_BMV080_Gravity::getRegMapVersion(void)
-{
-  uint16_t data = 0;
-  readInputValue(REG_INPUT_REG_MAP_VERSION, data);
-  return data;
-}
-
-uint16_t DFRobot_BMV080_Gravity::getRunState(void)
-{
-  uint16_t data = 0;
-  readInputValue(REG_INPUT_RUN_STATE, data);
-  return data;
-}
-
-uint16_t DFRobot_BMV080_Gravity::getStatus(void)
-{
-  uint16_t data = 0;
-  readInputValue(REG_INPUT_LAST_STATUS, data);
-  return data;
-}
-
-bool DFRobot_BMV080_Gravity::getBmv080DV(uint16_t &major, uint16_t &minor, uint16_t &patch)
-{
-  uint16_t data[3] = { 0 };
-  uint8_t  ret     = readInputReg(REG_INPUT_DRIVER_MAJOR, data, 3);
-  if (ret != RET_CODE_OK) {
-    _lastError = ret;
+  if (data == NULL) {
     return false;
   }
-  major      = data[0];
-  minor      = data[1];
-  patch      = data[2];
-  _lastError = RET_CODE_OK;
-  return true;
-}
-
-bool DFRobot_BMV080_Gravity::getBmv080ID(char *id)
-{
-  uint16_t data[6] = { 0 };
-  uint8_t  ret     = 0;
-
-  if (id == NULL) {
-    _lastError = ERR_DATA_READ;
-    return false;
-  }
-
-  ret = readInputReg(REG_INPUT_SENSOR_ID0, data, 6);
-  if (ret != RET_CODE_OK) {
-    _lastError = ret;
-    id[0]      = '\0';
-    return false;
-  }
-
-  for (uint8_t i = 0; i < 6; i++) {
-    id[i * 2]       = (char)((data[i] >> 8) & 0xFF);
-    id[(i * 2) + 1] = (char)(data[i] & 0xFF);
-  }
-  id[12]     = '\0';
-  _lastError = RET_CODE_OK;
-  return true;
-}
-
-bool DFRobot_BMV080_Gravity::readBmv080Data(sBmv080Data_t *data)
-{
   uint16_t regs[12] = { 0 };
   uint8_t  ret      = RET_CODE_ERROR;
   for (uint8_t attempt = 0; attempt < BMV080_I2C_VALIDATE_RETRY; attempt++) {
@@ -180,7 +92,6 @@ bool DFRobot_BMV080_Gravity::readBmv080Data(sBmv080Data_t *data)
     delay(3);
   }
   if (ret != RET_CODE_OK) {
-    _lastError = ret;
     return false;
   }
 
@@ -199,26 +110,26 @@ bool DFRobot_BMV080_Gravity::readBmv080Data(sBmv080Data_t *data)
   _data.valueInvalid              = (regs[10] & INPUT_FLAG_VALUE_INVALID) != 0;
   _data.sampleSeq                 = regs[11];
 
-  if (data != NULL) {
-    *data = _data;
-  }
-  _lastError = RET_CODE_OK;
+  *data = _data;
   return true;
 }
 
-bool DFRobot_BMV080_Gravity::getBmv080Data(sBmv080Data_t *data)
+bool DFRobot_BMV080_Gravity::getData(sData_t *data)
 {
-  if (!readBmv080Data(data)) {
+  if (!readData(data)) {
     return false;
   }
   return _data.dataReady;
 }
 
-int DFRobot_BMV080_Gravity::setBmv080Mode(uint8_t mode)
+int DFRobot_BMV080_Gravity::setMeasureMode(eMeasureMode_t mode)
 {
-  int ret = 0;
-  if ((mode != CONTINUOUS_MODE) && (mode != DUTY_CYCLE_MODE)) {
-    _lastError = ERR_DATA_READ;
+  int      ret          = 0;
+  uint16_t regs[2]      = { 0 };
+  uint16_t targetState  = (mode == eDutyCycleMode) ? eRunStateMeasuringDuty : eRunStateMeasuringContinuous;
+  uint32_t startTime    = 0;
+  uint32_t waitTimeout  = 1000;
+  if ((mode != eContinuousMode) && (mode != eDutyCycleMode)) {
     return -1;
   }
 
@@ -226,19 +137,34 @@ int DFRobot_BMV080_Gravity::setBmv080Mode(uint8_t mode)
   if (ret != RET_CODE_OK) {
     return ret;
   }
-  ret = writeHoldingValue(REG_HOLDING_ACTION, eStart);
+  ret = writeAction(eStart);
   if (ret != RET_CODE_OK) {
     return ret;
   }
-  return RET_CODE_OK;
+
+  startTime = millis();
+  do {
+    ret = readInputReg(REG_INPUT_RUN_STATE, regs, 2);
+    if (ret == RET_CODE_OK) {
+      if (regs[0] == targetState) {
+        return RET_CODE_OK;
+      }
+      if (regs[0] == eRunStateError) {
+        return regs[1] == RET_CODE_OK ? RET_CODE_ERROR : regs[1];
+      }
+    }
+    delay(10);
+  } while ((millis() - startTime) < waitTimeout);
+
+  return ERR_DATA_READ;
 }
 
-bool DFRobot_BMV080_Gravity::stopBmv080(void)
+bool DFRobot_BMV080_Gravity::stopMeasurement(void)
 {
   return writeAction(eStop) == RET_CODE_OK;
 }
 
-bool DFRobot_BMV080_Gravity::resetBmv080(void)
+bool DFRobot_BMV080_Gravity::reset(void)
 {
   return writeAction(eReset) == RET_CODE_OK;
 }
@@ -251,8 +177,11 @@ uint8_t DFRobot_BMV080_Gravity::writeAction(eAction_t action)
 int DFRobot_BMV080_Gravity::setIntegrationTime(float integration_time)
 {
   uint16_t data[2] = { 0 };
-  if (isnan(integration_time) || isinf(integration_time)) {
-    _lastError = ERR_DATA_READ;
+  uint16_t dutyPeriod = getDutyCyclingPeriod();
+  if (isnan(integration_time) || isinf(integration_time) || (integration_time <= 0.0f)) {
+    return -1;
+  }
+  if ((dutyPeriod == 0) || (((float)dutyPeriod) < (integration_time + 2.0f))) {
     return -1;
   }
   floatToWords(integration_time, data[0], data[1]);
@@ -264,15 +193,18 @@ float DFRobot_BMV080_Gravity::getIntegrationTime(void)
   uint16_t data[2] = { 0 };
   uint8_t  ret     = readHoldingReg(REG_HOLDING_INTEGRATION_F32_HI, data, 2);
   if (ret != RET_CODE_OK) {
-    _lastError = ret;
     return NAN;
   }
-  _lastError = RET_CODE_OK;
   return wordsToFloat(data[0], data[1]);
 }
 
 int DFRobot_BMV080_Gravity::setDutyCyclingPeriod(uint16_t duty_cycling_period)
 {
+  float integrationTime = getIntegrationTime();
+  if ((duty_cycling_period < 3) || isnan(integrationTime) || isinf(integrationTime) ||
+      (((float)duty_cycling_period) < (integrationTime + 2.0f))) {
+    return -1;
+  }
   return writeHoldingValue(REG_HOLDING_DUTY_PERIOD_S, duty_cycling_period);
 }
 
@@ -299,12 +231,12 @@ int DFRobot_BMV080_Gravity::getObstructionDetection(void)
   return data ? 1 : 0;
 }
 
-bool DFRobot_BMV080_Gravity::setDoVibrationFiltering(bool enable)
+bool DFRobot_BMV080_Gravity::setVibrationFiltering(bool enable)
 {
   return writeHoldingValue(REG_HOLDING_VIBRATION, enable ? 1 : 0) == RET_CODE_OK;
 }
 
-int DFRobot_BMV080_Gravity::getDoVibrationFiltering(void)
+int DFRobot_BMV080_Gravity::getVibrationFiltering(void)
 {
   uint16_t data = 0;
   if (!readHoldingValue(REG_HOLDING_VIBRATION, data)) {
@@ -313,56 +245,47 @@ int DFRobot_BMV080_Gravity::getDoVibrationFiltering(void)
   return data ? 1 : 0;
 }
 
-int DFRobot_BMV080_Gravity::setMeasurementAlgorithm(uint8_t measurement_algorithm)
+int DFRobot_BMV080_Gravity::setMeasurementAlgorithm(eMeasurementAlgorithm_t measurement_algorithm)
 {
-  if ((measurement_algorithm < FAST_RESPONSE) || (measurement_algorithm > HIGH_PRECISION)) {
-    _lastError = ERR_DATA_READ;
+  if ((measurement_algorithm < eFastResponse) || (measurement_algorithm > eHighPrecision)) {
     return -1;
   }
   return writeHoldingValue(REG_HOLDING_ALGORITHM, (uint16_t)measurement_algorithm);
 }
 
-uint8_t DFRobot_BMV080_Gravity::getMeasurementAlgorithm(void)
+DFRobot_BMV080_Gravity::eMeasurementAlgorithm_t DFRobot_BMV080_Gravity::getMeasurementAlgorithm(void)
 {
   uint16_t data = 0;
   if (!readHoldingValue(REG_HOLDING_ALGORITHM, data)) {
-    return 0;
+    return (eMeasurementAlgorithm_t)0;
   }
-  if ((data < 1) || (data > 3)) {
-    _lastError = ERR_DATA_READ;
-    return 0;
+  if ((data < eFastResponse) || (data > eHighPrecision)) {
+    return (eMeasurementAlgorithm_t)0;
   }
-  return (uint8_t)data;
+  return (eMeasurementAlgorithm_t)data;
 }
 
 uint8_t DFRobot_BMV080_Gravity::setBaud(eBaud_t baud)
 {
   if ((baud < e2400) || (baud > e115200)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
   return writeHoldingValue(REG_HOLDING_BAUDRATE, (uint16_t)baud);
 }
 
-uint16_t DFRobot_BMV080_Gravity::getBaud(void)
+uint32_t DFRobot_BMV080_Gravity::getBaud(void)
 {
   uint16_t data = 0;
   if (!readHoldingValue(REG_HOLDING_BAUDRATE, data)) {
     return 0;
   }
-  return data;
-}
-
-uint32_t DFRobot_BMV080_Gravity::getBaudValue(void)
-{
-  return baudRegToValue(getBaud());
+  return baudRegToValue(data);
 }
 
 uint8_t DFRobot_BMV080_Gravity::setUartFormat(eParity_t parity, eStopBit_t stopBit)
 {
   uint16_t data = 0;
   if ((parity > eParityOdd) || (stopBit < eStopBit1) || (stopBit > eStopBit2)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
   data = (uint16_t)(((uint16_t)parity << 8) | (uint16_t)stopBit);
@@ -378,24 +301,6 @@ uint16_t DFRobot_BMV080_Gravity::getUartFormat(void)
   return data;
 }
 
-uint8_t DFRobot_BMV080_Gravity::getLastError(void) const
-{
-  return _lastError;
-}
-
-bool DFRobot_BMV080_Gravity::readInputValue(uint16_t reg, uint16_t &value)
-{
-  uint8_t ret = 0;
-  for (uint8_t attempt = 0; attempt < 3; attempt++) {
-    ret = readInputReg(reg, &value, 1);
-    if (ret == RET_CODE_OK)
-      break;
-    delay(5);
-  }
-  _lastError = ret;
-  return ret == RET_CODE_OK;
-}
-
 bool DFRobot_BMV080_Gravity::readHoldingValue(uint16_t reg, uint16_t &value)
 {
   uint8_t ret = 0;
@@ -405,7 +310,6 @@ bool DFRobot_BMV080_Gravity::readHoldingValue(uint16_t reg, uint16_t &value)
       break;
     delay(5);
   }
-  _lastError = ret;
   return ret == RET_CODE_OK;
 }
 
@@ -416,10 +320,7 @@ uint8_t DFRobot_BMV080_Gravity::writeHoldingValue(uint16_t reg, uint16_t value)
 
 uint8_t DFRobot_BMV080_Gravity::writeHoldingValues(uint16_t reg, const uint16_t *data, uint16_t count)
 {
-  // Keep one unified write path so all transports return consistent error codes.
-  uint8_t ret = writeHoldingReg(reg, data, count);
-  _lastError  = ret;
-  return ret;
+  return writeHoldingReg(reg, data, count);
 }
 
 uint32_t DFRobot_BMV080_Gravity::baudRegToValue(uint16_t baudReg)
@@ -446,14 +347,13 @@ uint32_t DFRobot_BMV080_Gravity::baudRegToValue(uint16_t baudReg)
   }
 }
 
-DFRobot_BMV080_Gravity_I2C::DFRobot_BMV080_Gravity_I2C(TwoWire *pWire, uint8_t addr) : _pWire(pWire), _i2cAddr(addr), _timeout(100) {}
+DFRobot_BMV080_Gravity_I2C::DFRobot_BMV080_Gravity_I2C(TwoWire *pWire, uint8_t addr) : _pWire(pWire), _i2cAddr(addr), _timeout(1000) {}
 
 DFRobot_BMV080_Gravity_I2C::~DFRobot_BMV080_Gravity_I2C(void) {}
 
 bool DFRobot_BMV080_Gravity_I2C::begin(void)
 {
   if (_pWire == NULL) {
-    _lastError = ERR_DATA_BUS;
     return false;
   }
   _pWire->begin();
@@ -468,7 +368,6 @@ void DFRobot_BMV080_Gravity_I2C::setTimeoutTimeMs(uint32_t timeout)
 uint8_t DFRobot_BMV080_Gravity_I2C::writeHoldingReg(uint16_t reg, const uint16_t *data, uint16_t count)
 {
   if ((data == NULL) || (count == 0)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
   if (count == 1) {
@@ -492,10 +391,10 @@ uint8_t DFRobot_BMV080_Gravity_I2C::readRegs(uint8_t func, uint16_t reg, uint16_
   // Short-frame format: [0]=0xA5 [1]=func [2..3]=start register [4]=register count.
   uint8_t request[5]                         = { BMV080_I2C_SHORT_HEADER, func, 0, 0, 0 };
   uint8_t response[BMV080_I2C_MAX_FRAME_LEN] = { 0 };
+  uint8_t ret                                = ERR_DATA_READ;
   uint8_t responseLen                        = 0;
 
   if ((data == NULL) || (count == 0) || (count > BMV080_I2C_MAX_READ_REGS)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
 
@@ -509,16 +408,16 @@ uint8_t DFRobot_BMV080_Gravity_I2C::readRegs(uint8_t func, uint16_t reg, uint16_
     }
 
     if ((response[0] != BMV080_I2C_SHORT_HEADER) || (response[1] == (func | 0x80))) {
-      _lastError = (response[0] == BMV080_I2C_SHORT_HEADER) ? response[2] : ERR_DATA_READ;
+      ret = (response[0] == BMV080_I2C_SHORT_HEADER) ? response[2] : ERR_DATA_READ;
       // Valid exception frame, return directly.
       if ((response[0] == BMV080_I2C_SHORT_HEADER) && (response[1] == (func | 0x80))) {
-        return _lastError;
+        return ret;
       }
       delay(3);
       continue;
     }
     if ((response[1] != func) || (response[2] != (uint8_t)(count * 2))) {
-      _lastError = ERR_DATA_READ;
+      ret = ERR_DATA_READ;
       delay(3);
       continue;
     }
@@ -526,20 +425,17 @@ uint8_t DFRobot_BMV080_Gravity_I2C::readRegs(uint8_t func, uint16_t reg, uint16_
     for (uint16_t i = 0; i < count; i++) {
       data[i] = getBE16(&response[3 + (i * 2)]);
     }
-    _lastError = RET_CODE_OK;
     return RET_CODE_OK;
   }
 
-  if (_lastError == RET_CODE_OK) {
-    _lastError = ERR_DATA_READ;
-  }
-  return _lastError;
+  return ret;
 }
 
 uint8_t DFRobot_BMV080_Gravity_I2C::writeSingleReg(uint16_t reg, uint16_t value)
 {
   uint8_t request[6]  = { BMV080_I2C_SHORT_HEADER, BMV080_I2C_FUNC_WRITE_HOLDING, 0, 0, 0, 0 };
   uint8_t response[6] = { 0 };
+  uint8_t ret         = ERR_DATA_READ;
 
   putBE16(reg, &request[2]);
   putBE16(value, &request[4]);
@@ -549,10 +445,10 @@ uint8_t DFRobot_BMV080_Gravity_I2C::writeSingleReg(uint16_t reg, uint16_t value)
       continue;
     }
     if ((response[0] != BMV080_I2C_SHORT_HEADER) || (response[1] == (BMV080_I2C_FUNC_WRITE_HOLDING | 0x80))) {
-      _lastError = (response[0] == BMV080_I2C_SHORT_HEADER) ? response[2] : ERR_DATA_READ;
+      ret = (response[0] == BMV080_I2C_SHORT_HEADER) ? response[2] : ERR_DATA_READ;
       // Valid exception frame, return directly.
       if ((response[0] == BMV080_I2C_SHORT_HEADER) && (response[1] == (BMV080_I2C_FUNC_WRITE_HOLDING | 0x80))) {
-        return _lastError;
+        return ret;
       }
       delay(3);
       continue;
@@ -565,18 +461,14 @@ uint8_t DFRobot_BMV080_Gravity_I2C::writeSingleReg(uint16_t reg, uint16_t value)
       }
     }
     if (!echoOk) {
-      _lastError = ERR_DATA_READ;
+      ret = ERR_DATA_READ;
       delay(3);
       continue;
     }
-    _lastError = RET_CODE_OK;
     return RET_CODE_OK;
   }
 
-  if (_lastError == RET_CODE_OK) {
-    _lastError = ERR_DATA_READ;
-  }
-  return _lastError;
+  return ret;
 }
 
 uint8_t DFRobot_BMV080_Gravity_I2C::writeMultiRegs(uint16_t reg, const uint16_t *data, uint16_t count)
@@ -585,10 +477,10 @@ uint8_t DFRobot_BMV080_Gravity_I2C::writeMultiRegs(uint16_t reg, const uint16_t 
   // [0]=0xA5 [1]=0x10 [2..3]=start register [4]=count [5]=byte count [6..]=payload.
   uint8_t request[BMV080_I2C_MAX_FRAME_LEN] = { 0 };
   uint8_t response[6]                       = { 0 };
+  uint8_t ret                               = ERR_DATA_READ;
   uint8_t requestLen                        = 0;
 
   if ((data == NULL) || (count == 0) || (count > BMV080_I2C_MAX_WRITE_REGS)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
 
@@ -607,41 +499,35 @@ uint8_t DFRobot_BMV080_Gravity_I2C::writeMultiRegs(uint16_t reg, const uint16_t 
       continue;
     }
     if ((response[0] != BMV080_I2C_SHORT_HEADER) || (response[1] == (BMV080_I2C_FUNC_WRITE_MULTI_HOLDING | 0x80))) {
-      _lastError = (response[0] == BMV080_I2C_SHORT_HEADER) ? response[2] : ERR_DATA_READ;
+      ret = (response[0] == BMV080_I2C_SHORT_HEADER) ? response[2] : ERR_DATA_READ;
       // Valid exception frame, return directly.
       if ((response[0] == BMV080_I2C_SHORT_HEADER) && (response[1] == (BMV080_I2C_FUNC_WRITE_MULTI_HOLDING | 0x80))) {
-        return _lastError;
+        return ret;
       }
       delay(3);
       continue;
     }
     if ((response[1] != BMV080_I2C_FUNC_WRITE_MULTI_HOLDING) || (getBE16(&response[2]) != reg) || (getBE16(&response[4]) != count)) {
-      _lastError = ERR_DATA_READ;
+      ret = ERR_DATA_READ;
       delay(3);
       continue;
     }
-    _lastError = RET_CODE_OK;
     return RET_CODE_OK;
   }
 
-  if (_lastError == RET_CODE_OK) {
-    _lastError = ERR_DATA_READ;
-  }
-  return _lastError;
+  return ret;
 }
 
 bool DFRobot_BMV080_Gravity_I2C::transferShortFrame(const uint8_t *request, uint8_t requestLen, uint8_t *response, uint8_t responseLen)
 {
   if ((_pWire == NULL) || (request == NULL) || (response == NULL) || (requestLen == 0) || (responseLen == 0) || (requestLen > BMV080_I2C_MAX_FRAME_LEN) || (responseLen > BMV080_I2C_MAX_FRAME_LEN)) {
-    _lastError = ERR_DATA_READ;
     return false;
   }
 
   for (uint8_t retry = 0; retry < BMV080_I2C_SHORTFRAME_RETRY; retry++) {
-    uint8_t  received     = 0;
-    uint32_t start        = millis();
-    bool     ok           = true;
-    bool     gotException = false;
+    uint8_t  received = 0;
+    uint32_t start    = millis();
+    bool     ok       = true;
 
     while (_pWire->available()) {
       (void)_pWire->read();
@@ -649,12 +535,10 @@ bool DFRobot_BMV080_Gravity_I2C::transferShortFrame(const uint8_t *request, uint
 
     _pWire->beginTransmission(_i2cAddr);
     if (_pWire->write(request, requestLen) != requestLen) {
-      _lastError = ERR_DATA_BUS;
       delay(2);
       continue;
     }
     if (_pWire->endTransmission() != 0) {
-      _lastError = ERR_DATA_BUS;
       delay(2);
       continue;
     }
@@ -678,19 +562,12 @@ bool DFRobot_BMV080_Gravity_I2C::transferShortFrame(const uint8_t *request, uint
           response[i] = (uint8_t)_pWire->read();
         }
         if ((response[0] == BMV080_I2C_SHORT_HEADER) && (response[1] == (request[1] | 0x80))) {
-          _lastError   = response[2];
-          gotException = true;
-          break;
+          return true;
         }
       }
       delay(2);
     }
-    if (gotException) {
-      delay(2);
-      continue;
-    }
     if (received != responseLen) {
-      _lastError = ERR_DATA_READ;
       delay(2);
       continue;
     }
@@ -698,8 +575,7 @@ bool DFRobot_BMV080_Gravity_I2C::transferShortFrame(const uint8_t *request, uint
     for (uint8_t i = 0; i < responseLen; i++) {
       while (!_pWire->available()) {
         if ((millis() - start) > _timeout) {
-          _lastError = ERR_DATA_READ;
-          ok         = false;
+          ok = false;
           break;
         }
         delay(1);
@@ -712,14 +588,10 @@ bool DFRobot_BMV080_Gravity_I2C::transferShortFrame(const uint8_t *request, uint
     }
 
     if (ok) {
-      _lastError = RET_CODE_OK;
       return true;
     }
   }
 
-  if (_lastError == RET_CODE_OK) {
-    _lastError = ERR_DATA_READ;
-  }
   return false;
 }
 
@@ -734,7 +606,6 @@ DFRobot_BMV080_Gravity_UART::~DFRobot_BMV080_Gravity_UART(void) {}
 bool DFRobot_BMV080_Gravity_UART::begin(void)
 {
   if (_serial == NULL) {
-    _lastError = ERR_DATA_BUS;
     return false;
   }
 #ifdef ESP32
@@ -753,7 +624,6 @@ uint8_t DFRobot_BMV080_Gravity_UART::writeHoldingReg(uint16_t reg, const uint16_
 {
   uint8_t ret = 0;
   if ((data == NULL) || (count == 0)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
   if (count == 1) {
@@ -761,7 +631,6 @@ uint8_t DFRobot_BMV080_Gravity_UART::writeHoldingReg(uint16_t reg, const uint16_
   } else {
     ret = DFRobot_RTU::writeHoldingRegister(_addr, reg, (uint16_t *)data, count);
   }
-  _lastError = ret;
   return ret;
 }
 
@@ -769,11 +638,9 @@ uint8_t DFRobot_BMV080_Gravity_UART::readHoldingReg(uint16_t reg, uint16_t *data
 {
   uint8_t ret = 0;
   if ((data == NULL) || (count == 0)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
-  ret        = DFRobot_RTU::readHoldingRegister(_addr, reg, data, count);
-  _lastError = ret;
+  ret = DFRobot_RTU::readHoldingRegister(_addr, reg, data, count);
   return ret;
 }
 
@@ -781,10 +648,8 @@ uint8_t DFRobot_BMV080_Gravity_UART::readInputReg(uint16_t reg, uint16_t *data, 
 {
   uint8_t ret = 0;
   if ((data == NULL) || (count == 0)) {
-    _lastError = ERR_DATA_READ;
     return RET_CODE_ERROR;
   }
-  ret        = DFRobot_RTU::readInputRegister(_addr, reg, data, count);
-  _lastError = ret;
+  ret = DFRobot_RTU::readInputRegister(_addr, reg, data, count);
   return ret;
 }

@@ -7,5 +7,5 @@ from .DFRobot_BMV080_Gravity import (
   DFRobot_BMV080_Gravity,
   DFRobot_BMV080_Gravity_I2C,
   DFRobot_BMV080_Gravity_UART,
-  sBmv080Data_t,
+  sData_t,
 )

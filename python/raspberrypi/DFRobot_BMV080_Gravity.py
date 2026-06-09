@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""!
+'''!
 @file  DFRobot_BMV080_Gravity.py
 @brief  Python driver for DFRobot BMV080 Gravity firmware module.
 @details  This library talks to the module firmware register map over I2C short frames
@@ -8,9 +8,9 @@
 @license     The MIT License (MIT)
 @author      DFRobot
 @version     V1.0.0
-@date        2026-05-13
+@date        2026-06-09
 @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
-"""
+'''
 
 from __future__ import annotations
 
@@ -18,27 +18,29 @@ from dataclasses import dataclass
 import math
 import struct
 import time
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional
 
 from DFRobot_RTU import DFRobot_RTU
 
 _SMBUS_IMPORT_ERROR: Optional[ImportError] = None
 
 try:
-  import smbus  # type: ignore
-except ImportError as exc:
-  smbus = None
-  _SMBUS_IMPORT_ERROR = exc
-
-try:
+  import smbus2 as smbus  # type: ignore
   from smbus2 import i2c_msg  # type: ignore
 except ImportError:
   i2c_msg = None
+  try:
+    import smbus  # type: ignore
+  except ImportError as exc:
+    smbus = None
+    _SMBUS_IMPORT_ERROR = exc
 
 
 @dataclass
-class sBmv080Data_t:
-  """Cached PM data and state flags."""
+class sData_t:
+  '''!
+    @brief Cached PM data and state flags.
+  '''
 
   PM1: float = 0.0
   PM2_5: float = 0.0
@@ -66,11 +68,11 @@ class DFRobot_BMV080_Gravity(object):
   ERR_IC_VERSION = 3
 
   # Device constants
-  DFRobot_BMV080_GRAVITY_DEFAULT_ADDR = 0x57
-  DFRobot_BMV080_GRAVITY_PID = 0x0296
-  DFRobot_BMV080_GRAVITY_VID = 0x3343
-  DFRobot_BMV080_GRAVITY_VERSION = 0x1000
-  DFRobot_BMV080_GRAVITY_REG_MAP_VERSION = 0x0003
+  DFRobot_BMV080_GRAVITY_DEFAULT_I2C_ADDR = 0x57
+  DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR = 0x57
+  _EXPECTED_PID = 0x0296
+  _EXPECTED_VID = 0x3343
+  _EXPECTED_REG_MAP_VERSION = 0x0004
 
   # Measurement mode
   CONTINUOUS_MODE = 0
@@ -116,37 +118,19 @@ class DFRobot_BMV080_Gravity(object):
 
   # Input registers
   REG_INPUT_PID = 0x0000
-  REG_INPUT_VID = 0x0001
-  REG_INPUT_VERSION = 0x0002
-  REG_INPUT_REG_MAP_VERSION = 0x0003
   REG_INPUT_RUN_STATE = 0x0004
-  REG_INPUT_LAST_STATUS = 0x0005
-  REG_INPUT_PM1_F32_HI = 0x0006
-  REG_INPUT_PM1_F32_LO = 0x0007
-  REG_INPUT_PM25_F32_HI = 0x0008
-  REG_INPUT_PM25_F32_LO = 0x0009
-  REG_INPUT_PM10_F32_HI = 0x000A
-  REG_INPUT_PM10_F32_LO = 0x000B
-  REG_INPUT_RUNTIME_F32_HI = 0x000C
-  REG_INPUT_RUNTIME_F32_LO = 0x000D
-  REG_INPUT_FLAGS = 0x000E
-  REG_INPUT_SAMPLE_SEQ = 0x000F
-  REG_INPUT_DRIVER_MAJOR = 0x0010
-  REG_INPUT_DRIVER_MINOR = 0x0011
-  REG_INPUT_DRIVER_PATCH = 0x0012
-  REG_INPUT_SENSOR_ID0 = 0x0013
 
   # Holding registers
-  REG_HOLDING_BAUDRATE = 0x0000
-  REG_HOLDING_VERIFY_STOP = 0x0001
-  REG_HOLDING_ACTION = 0x0002
-  REG_HOLDING_MEASURE_MODE = 0x0003
-  REG_HOLDING_ALGORITHM = 0x0004
-  REG_HOLDING_OBSTRUCTION = 0x0005
-  REG_HOLDING_VIBRATION = 0x0006
-  REG_HOLDING_INTEGRATION_F32_HI = 0x0007
-  REG_HOLDING_INTEGRATION_F32_LO = 0x0008
-  REG_HOLDING_DUTY_PERIOD_S = 0x0009
+  REG_HOLDING_BAUDRATE = 0x0001
+  REG_HOLDING_VERIFY_STOP = 0x0002
+  REG_HOLDING_ACTION = 0x0003
+  REG_HOLDING_MEASURE_MODE = 0x0004
+  REG_HOLDING_ALGORITHM = 0x0005
+  REG_HOLDING_OBSTRUCTION = 0x0006
+  REG_HOLDING_VIBRATION = 0x0007
+  REG_HOLDING_INTEGRATION_F32_HI = 0x0008
+  REG_HOLDING_INTEGRATION_F32_LO = 0x0009
+  REG_HOLDING_DUTY_PERIOD_S = 0x000A
 
   # Input flag bits
   INPUT_FLAG_OBSTRUCTED = 1 << 0
@@ -158,72 +142,30 @@ class DFRobot_BMV080_Gravity(object):
   INPUT_FLAG_VALUE_INVALID = 1 << 9
 
   def __init__(self) -> None:
-    self._lastError = self.RET_CODE_OK
-    self._data = sBmv080Data_t()
+    self._data = sData_t()
 
   def begin(self) -> bool:
-    regs = self.readInputReg(self.REG_INPUT_PID, 2)
-    comm_ok = False
-
+    '''!
+      @brief Initialize the module and check firmware compatibility
+      @return Initialization status
+      @retval True Initialization succeeded
+      @retval False Initialization failed
+    '''
     for _ in range(8):
-      regs = self.readInputReg(self.REG_INPUT_PID, 2)
+      regs = self.readInputReg(self.REG_INPUT_PID, 4)
       if regs is not None:
-        comm_ok = True
         pid = regs[0]
         vid = regs[1]
-        if vid == self.DFRobot_BMV080_GRAVITY_VID and (pid == self.DFRobot_BMV080_GRAVITY_PID):
-          self._lastError = self.RET_CODE_OK
+        reg_map = regs[3]
+        if (vid == self._EXPECTED_VID and
+            pid == self._EXPECTED_PID and
+            reg_map == self._EXPECTED_REG_MAP_VERSION):
           return True
       time.sleep(0.01)
 
-    if not comm_ok:
-      return False
-
-    self._lastError = self.ERR_IC_VERSION
     return False
 
-  def getPID(self) -> int:
-    value = self._readInputValue(self.REG_INPUT_PID)
-    return value if value is not None else 0
-
-  def getVID(self) -> int:
-    value = self._readInputValue(self.REG_INPUT_VID)
-    return value if value is not None else 0
-
-  def getVersion(self) -> int:
-    value = self._readInputValue(self.REG_INPUT_VERSION)
-    return value if value is not None else 0
-
-  def getRegMapVersion(self) -> int:
-    value = self._readInputValue(self.REG_INPUT_REG_MAP_VERSION)
-    return value if value is not None else 0
-
-  def getRunState(self) -> int:
-    value = self._readInputValue(self.REG_INPUT_RUN_STATE)
-    return value if value is not None else 0
-
-  def getStatus(self) -> int:
-    value = self._readInputValue(self.REG_INPUT_LAST_STATUS)
-    return value if value is not None else 0
-
-  def getBmv080DV(self) -> Optional[Tuple[int, int, int]]:
-    regs = self.readInputReg(self.REG_INPUT_DRIVER_MAJOR, 3)
-    if regs is None:
-      return None
-    return regs[0], regs[1], regs[2]
-
-  def getBmv080ID(self) -> Optional[str]:
-    regs = self.readInputReg(self.REG_INPUT_SENSOR_ID0, 6)
-    if regs is None:
-      return None
-
-    raw = bytearray()
-    for word in regs:
-      raw.append((word >> 8) & 0xFF)
-      raw.append(word & 0xFF)
-    return raw.decode("ascii", errors="ignore").rstrip("\x00")
-
-  def readBmv080Data(self) -> Optional[sBmv080Data_t]:
+  def _readData(self) -> Optional[sData_t]:
     regs = None
     for _ in range(3):
       regs = self.readInputReg(self.REG_INPUT_RUN_STATE, 12)
@@ -234,7 +176,7 @@ class DFRobot_BMV080_Gravity(object):
       return None
 
     flags = regs[10]
-    self._data = sBmv080Data_t(
+    self._data = sData_t(
       runState=regs[0],
       status=regs[1],
       PM1=self._regs_to_float(regs[2], regs[3]),
@@ -250,116 +192,288 @@ class DFRobot_BMV080_Gravity(object):
       valueInvalid=(flags & self.INPUT_FLAG_VALUE_INVALID) != 0,
       sampleSeq=regs[11],
     )
-    self._lastError = self.RET_CODE_OK
-    return sBmv080Data_t(**self._data.__dict__)
+    return sData_t(**self._data.__dict__)
 
-  def getBmv080Data(self) -> Optional[sBmv080Data_t]:
-    data = self.readBmv080Data()
+  def getData(self) -> Optional[sData_t]:
+    '''!
+      @brief Read particulate matter measurement data
+      @return sData_t object when new data is available, otherwise None
+    '''
+    data = self._readData()
     if data is None or not data.dataReady:
       return None
     return data
 
-  def setBmv080Mode(self, mode: int) -> int:
+  def setMeasureMode(self, mode: int) -> int:
+    '''!
+      @brief Set measurement mode and start measurement
+      @param mode Measurement mode
+      @n          CONTINUOUS_MODE: Continuous measurement mode
+      @n          DUTY_CYCLE_MODE: Duty-cycle measurement mode
+      @return Setting status
+      @retval 0 Setting succeeded
+      @retval -1 Invalid parameter
+      @retval 1 Communication error or firmware returned an error
+      @retval 2 Data read error or start-state timeout
+      @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
+    '''
     if mode not in (self.CONTINUOUS_MODE, self.DUTY_CYCLE_MODE):
-      self._lastError = self.ERR_DATA_READ
       return -1
 
     ret = self._writeHoldingValue(self.REG_HOLDING_MEASURE_MODE, mode)
     if ret != self.RET_CODE_OK:
       return int(ret)
     ret = self._writeHoldingValue(self.REG_HOLDING_ACTION, self.ACTION_START)
-    return int(ret)
+    if ret != self.RET_CODE_OK:
+      return int(ret)
 
-  def stopBmv080(self) -> bool:
+    target_state = self.eRunStateMeasuringDuty if mode == self.DUTY_CYCLE_MODE else self.eRunStateMeasuringContinuous
+    start = time.monotonic()
+    while (time.monotonic() - start) < 1.0:
+      regs = self.readInputReg(self.REG_INPUT_RUN_STATE, 2)
+      if regs is not None:
+        if regs[0] == target_state:
+          return self.RET_CODE_OK
+        if regs[0] == self.eRunStateError:
+          return int(regs[1]) if regs[1] != self.RET_CODE_OK else self.RET_CODE_ERROR
+      time.sleep(0.01)
+
+    return self.ERR_DATA_READ
+
+  def stopMeasurement(self) -> bool:
+    '''!
+      @brief Stop the current measurement
+      @return Stop command execution status
+      @retval True Stop command succeeded
+      @retval False Stop command failed
+    '''
     return self._writeHoldingValue(self.REG_HOLDING_ACTION, self.ACTION_STOP) == self.RET_CODE_OK
 
-  def resetBmv080(self) -> bool:
+  def reset(self) -> bool:
+    '''!
+      @brief Reset the sensor and restore default configuration
+      @return Reset command execution status
+      @retval True Reset command succeeded
+      @retval False Reset command failed
+    '''
     return self._writeHoldingValue(self.REG_HOLDING_ACTION, self.ACTION_RESET) == self.RET_CODE_OK
 
   def setIntegrationTime(self, integration_time: float) -> int:
-    if not math.isfinite(integration_time):
-      self._lastError = self.ERR_DATA_READ
+    '''!
+      @brief Set measurement integration time
+      @param integration_time Integration time in seconds
+      @n                      The value must be greater than 0 and must not be NAN or INF.
+      @return Setting status
+      @retval 0 Setting succeeded
+      @retval -1 Invalid parameter or duty-cycle period constraint was not met
+      @retval 1 Communication error or firmware returned an error
+      @retval 2 Data read error
+      @note When increasing integration time beyond the current period margin, set duty-cycle period first.
+    '''
+    duty_period = self._getDutyCyclingPeriod()
+    if not math.isfinite(integration_time) or integration_time <= 0.0:
+      return -1
+    if duty_period == 0 or float(duty_period) < (integration_time + 2.0):
       return -1
     regs = self._float_to_regs(integration_time)
     ret = self.writeHoldingReg(self.REG_HOLDING_INTEGRATION_F32_HI, regs)
-    self._lastError = ret
     return int(ret)
 
-  def getIntegrationTime(self) -> float:
-    values = self.readHoldingReg(self.REG_HOLDING_INTEGRATION_F32_HI, 2)
-    if values is None:
-      return math.nan
-    return self._regs_to_float(values[0], values[1])
+  def _getIntegrationTime(self) -> float:
+    for _ in range(3):
+      values = self.readHoldingReg(self.REG_HOLDING_INTEGRATION_F32_HI, 2)
+      if values is not None:
+        value = self._regs_to_float(values[0], values[1])
+        if math.isfinite(value):
+          return value
+        break
+      time.sleep(0.005)
+    hi = self._readHoldingValue(self.REG_HOLDING_INTEGRATION_F32_HI)
+    lo = self._readHoldingValue(self.REG_HOLDING_INTEGRATION_F32_LO)
+    if hi is not None and lo is not None:
+      return self._regs_to_float(hi, lo)
+    return math.nan
 
   def setDutyCyclingPeriod(self, duty_cycling_period: int) -> int:
+    '''!
+      @brief Set duty-cycle measurement period
+      @param duty_cycling_period Duty-cycle measurement period in seconds
+      @n                         The value must satisfy current integration time plus 2 seconds.
+      @return Setting status
+      @retval 0 Setting succeeded
+      @retval -1 Invalid parameter or integration time read failed
+      @retval 1 Communication error or firmware returned an error
+      @retval 2 Data read error
+      @note When shortening duty-cycle period, lower integration time first if needed.
+    '''
+    integration_time = self._getIntegrationTime()
+    if duty_cycling_period <= 0 or not math.isfinite(integration_time) or float(duty_cycling_period) < (integration_time + 2.0):
+      return -1
     return int(self._writeHoldingValue(self.REG_HOLDING_DUTY_PERIOD_S, duty_cycling_period))
 
-  def getDutyCyclingPeriod(self) -> int:
+  def getIntegrationTime(self) -> float:
+    '''!
+      @brief Read measurement integration time
+      @return Integration time in seconds
+      @retval math.nan Read failed
+    '''
+    return self._getIntegrationTime()
+
+  def _getDutyCyclingPeriod(self) -> int:
     value = self._readHoldingValue(self.REG_HOLDING_DUTY_PERIOD_S)
     return value if value is not None else 0
 
+  def getDutyCyclingPeriod(self) -> int:
+    '''!
+      @brief Read duty-cycle measurement period
+      @return Duty-cycle measurement period in seconds
+      @retval 0 Read failed
+    '''
+    return self._getDutyCyclingPeriod()
+
   def setObstructionDetection(self, enable: bool) -> bool:
+    '''!
+      @brief Enable or disable obstruction detection
+      @param enable Obstruction detection switch
+      @n            True: Enable obstruction detection
+      @n            False: Disable obstruction detection
+      @return Setting status
+      @retval True Setting succeeded
+      @retval False Setting failed
+    '''
     return self._writeHoldingValue(self.REG_HOLDING_OBSTRUCTION, 1 if enable else 0) == self.RET_CODE_OK
 
   def getObstructionDetection(self) -> int:
+    '''!
+      @brief Read obstruction detection switch state
+      @return Obstruction detection switch state
+      @retval 1 Enabled
+      @retval 0 Disabled
+      @retval -1 Read failed
+    '''
     value = self._readHoldingValue(self.REG_HOLDING_OBSTRUCTION)
     if value is None:
       return -1
     return 1 if value != 0 else 0
 
-  def setDoVibrationFiltering(self, enable: bool) -> bool:
+  def setVibrationFiltering(self, enable: bool) -> bool:
+    '''!
+      @brief Enable or disable vibration filtering
+      @param enable Vibration filtering switch
+      @n            True: Enable vibration filtering
+      @n            False: Disable vibration filtering
+      @return Setting status
+      @retval True Setting succeeded
+      @retval False Setting failed
+    '''
     return self._writeHoldingValue(self.REG_HOLDING_VIBRATION, 1 if enable else 0) == self.RET_CODE_OK
 
-  def getDoVibrationFiltering(self) -> int:
+  def getVibrationFiltering(self) -> int:
+    '''!
+      @brief Read vibration filtering switch state
+      @return Vibration filtering switch state
+      @retval 1 Enabled
+      @retval 0 Disabled
+      @retval -1 Read failed
+    '''
     value = self._readHoldingValue(self.REG_HOLDING_VIBRATION)
     if value is None:
       return -1
     return 1 if value != 0 else 0
 
   def setMeasurementAlgorithm(self, measurement_algorithm: int) -> int:
+    '''!
+      @brief Set measurement algorithm
+      @param measurement_algorithm Measurement algorithm
+      @n                           FAST_RESPONSE: Fast response algorithm
+      @n                           BALANCED: Balanced algorithm
+      @n                           HIGH_PRECISION: High precision algorithm
+      @return Setting status
+      @retval 0 Setting succeeded
+      @retval -1 Invalid parameter
+      @retval 1 Communication error or firmware returned an error
+      @retval 2 Data read error
+      @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
+    '''
     if measurement_algorithm < self.FAST_RESPONSE or measurement_algorithm > self.HIGH_PRECISION:
-      self._lastError = self.ERR_DATA_READ
       return -1
     return int(self._writeHoldingValue(self.REG_HOLDING_ALGORITHM, measurement_algorithm))
 
   def getMeasurementAlgorithm(self) -> int:
+    '''!
+      @brief Read measurement algorithm
+      @return Current measurement algorithm
+      @retval FAST_RESPONSE Fast response algorithm
+      @retval BALANCED Balanced algorithm
+      @retval HIGH_PRECISION High precision algorithm
+      @retval 0 Read failed or register value is invalid
+    '''
     value = self._readHoldingValue(self.REG_HOLDING_ALGORITHM)
     if value is None:
       return 0
     if value < self.FAST_RESPONSE or value > self.HIGH_PRECISION:
-      self._lastError = self.ERR_DATA_READ
       return 0
     return int(value)
 
   def setBaud(self, baud: int) -> int:
+    '''!
+      @brief Save UART baud-rate setting to firmware NVS
+      @param baud Baud-rate enum value
+      @n          e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200
+      @return Setting status
+      @retval 0 Setting succeeded
+      @retval 1 Invalid parameter, communication error or firmware returned an error
+      @retval 2 Data read error
+      @note The new baud rate takes effect after module restart.
+    '''
     if baud < self.e2400 or baud > self.e115200:
-      self._lastError = self.ERR_DATA_READ
       return self.RET_CODE_ERROR
     return int(self._writeHoldingValue(self.REG_HOLDING_BAUDRATE, baud))
 
   def getBaud(self) -> int:
+    '''!
+      @brief Read UART baud rate
+      @return Current baud rate in bps
+      @retval 0 Read failed
+      @note Invalid register values are parsed as the default 9600 bps.
+    '''
     value = self._readHoldingValue(self.REG_HOLDING_BAUDRATE)
-    return value if value is not None else 0
-
-  def getBaudValue(self) -> int:
-    return self.baudRegToValue(self.getBaud())
+    return self._baudRegToValue(value) if value is not None else 0
 
   def setUartFormat(self, parity: int, stop_bit: int = eStopBit1) -> int:
+    '''!
+      @brief Save UART parity and stop-bit setting to firmware NVS
+      @param parity Parity configuration
+      @n            eParityNone: No parity
+      @n            eParityEven: Even parity
+      @n            eParityOdd: Odd parity
+      @param stop_bit Stop-bit configuration
+      @n              eStopBit1: 1 stop bit
+      @n              eStopBit1_5: 1.5 stop bits
+      @n              eStopBit2: 2 stop bits
+      @return Setting status
+      @retval 0 Setting succeeded
+      @retval 1 Invalid parameter, communication error or firmware returned an error
+      @retval 2 Data read error
+      @note The new UART frame format takes effect after module restart.
+    '''
     if parity > self.eParityOdd or stop_bit < self.eStopBit1 or stop_bit > self.eStopBit2:
-      self._lastError = self.ERR_DATA_READ
       return self.RET_CODE_ERROR
 
     value = ((parity & 0xFF) << 8) | (stop_bit & 0xFF)
     return int(self._writeHoldingValue(self.REG_HOLDING_VERIFY_STOP, value))
 
   def getUartFormat(self) -> int:
+    '''!
+      @brief Read UART parity and stop-bit register value
+      @return UART frame-format register value
+      @retval 0 Read failed
+      @note The high byte is parity and the low byte is stop bits.
+    '''
     value = self._readHoldingValue(self.REG_HOLDING_VERIFY_STOP)
     return value if value is not None else 0
 
-  def getLastError(self) -> int:
-    return int(self._lastError)
-
-  def baudRegToValue(self, baud_reg: int) -> int:
+  def _baudRegToValue(self, baud_reg: int) -> int:
     mapping = {
       self.e2400: 2400,
       self.e4800: 4800,
@@ -372,19 +486,6 @@ class DFRobot_BMV080_Gravity(object):
     }
     return mapping.get(baud_reg, 9600)
 
-  # Python-style aliases
-  def set_bmv080_mode(self, mode: int) -> int:
-    return self.setBmv080Mode(mode)
-
-  def stop_bmv080(self) -> bool:
-    return self.stopBmv080()
-
-  def reset_bmv080(self) -> bool:
-    return self.resetBmv080()
-
-  def get_last_error(self) -> int:
-    return self.getLastError()
-
   # Virtual transport methods
   def writeHoldingReg(self, reg: int, data: List[int]) -> int:
     raise NotImplementedError
@@ -395,28 +496,16 @@ class DFRobot_BMV080_Gravity(object):
   def readInputReg(self, reg: int, count: int) -> Optional[List[int]]:
     raise NotImplementedError
 
-  def _readInputValue(self, reg: int) -> Optional[int]:
-    for _ in range(3):
-      data = self.readInputReg(reg, 1)
-      if data is not None:
-        self._lastError = self.RET_CODE_OK
-        return data[0]
-      time.sleep(0.005)
-    return None
-
   def _readHoldingValue(self, reg: int) -> Optional[int]:
     for _ in range(3):
       data = self.readHoldingReg(reg, 1)
       if data is not None:
-        self._lastError = self.RET_CODE_OK
         return data[0]
       time.sleep(0.005)
     return None
 
   def _writeHoldingValue(self, reg: int, value: int) -> int:
-    ret = self.writeHoldingReg(reg, [value & 0xFFFF])
-    self._lastError = ret
-    return ret
+    return self.writeHoldingReg(reg, [value & 0xFFFF])
 
   @staticmethod
   def _float_to_regs(value: float) -> List[int]:
@@ -439,22 +528,31 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
   BMV080_I2C_MAX_READ_REGS = 14
   BMV080_I2C_MAX_WRITE_REGS = 13
   BMV080_I2C_SHORTFRAME_RETRY = 8
-  BMV080_I2C_SLAVE_SETTLE_MS = 20
+  BMV080_I2C_SLAVE_SETTLE_MS = 30
   BMV080_I2C_VALIDATE_RETRY = 3
 
-  def __init__(self, bus: int = 1, addr: int = DFRobot_BMV080_Gravity.DFRobot_BMV080_GRAVITY_DEFAULT_ADDR) -> None:
+  def __init__(self, bus: int = 1, addr: int = DFRobot_BMV080_Gravity.DFRobot_BMV080_GRAVITY_DEFAULT_I2C_ADDR) -> None:
     super().__init__()
     self._bus_id = bus
     self._addr = addr
-    self._timeout_s = 0.1
+    self._timeout_s = 1.0
     self._bus: Optional[Any] = None
 
   def begin(self) -> bool:
+    '''!
+      @brief Initialize I2C communication and check firmware compatibility
+      @return Initialization status
+      @retval True Initialization succeeded
+      @retval False Initialization failed
+    '''
     if not self._ensureBus():
       return False
     return super().begin()
 
   def close(self) -> None:
+    '''!
+      @brief Close the I2C bus handle
+    '''
     if self._bus is not None:
       try:
         self._bus.close()
@@ -463,13 +561,16 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
       self._bus = None
 
   def setTimeoutTimeMs(self, timeout_ms: int) -> None:
+    '''!
+      @brief Set I2C communication timeout
+      @param timeout_ms Timeout in milliseconds
+    '''
     if timeout_ms < 1:
       timeout_ms = 1
     self._timeout_s = timeout_ms / 1000.0
 
   def writeHoldingReg(self, reg: int, data: List[int]) -> int:
     if data is None or len(data) == 0:
-      self._lastError = self.ERR_DATA_READ
       return self.RET_CODE_ERROR
     if len(data) == 1:
       return self._writeSingleReg(reg, data[0])
@@ -485,17 +586,15 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
     if self._bus is not None:
       return True
     if smbus is None:
-      raise ImportError("smbus is required. Install with `sudo apt install python3-smbus` or `pip install smbus2`.") from _SMBUS_IMPORT_ERROR
+      raise ImportError("smbus2 or smbus is required. Install with `pip install smbus2` or `sudo apt install python3-smbus`.") from _SMBUS_IMPORT_ERROR
     try:
       self._bus = smbus.SMBus(self._bus_id)
     except Exception:
-      self._lastError = self.ERR_DATA_BUS
       return False
     return True
 
   def _readRegs(self, func: int, reg: int, count: int) -> Optional[List[int]]:
     if count <= 0 or count > self.BMV080_I2C_MAX_READ_REGS:
-      self._lastError = self.ERR_DATA_READ
       return None
 
     request = [
@@ -513,16 +612,13 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
         continue
 
       if response[0] != self.BMV080_I2C_SHORT_HEADER:
-        self._lastError = self.ERR_DATA_READ
         time.sleep(0.003)
         continue
 
       if response[1] == (func | 0x80):
-        self._lastError = response[2]
         return None
 
       if response[1] != func or response[2] != (count * 2) or len(response) != response_len:
-        self._lastError = self.ERR_DATA_READ
         time.sleep(0.003)
         continue
 
@@ -531,11 +627,8 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
         hi = response[3 + (idx * 2)]
         lo = response[4 + (idx * 2)]
         regs.append(((hi << 8) | lo) & 0xFFFF)
-      self._lastError = self.RET_CODE_OK
       return regs
 
-    if self._lastError == self.RET_CODE_OK:
-      self._lastError = self.ERR_DATA_READ
     return None
 
   def _writeSingleReg(self, reg: int, value: int) -> int:
@@ -547,6 +640,7 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
       (value >> 8) & 0xFF,
       value & 0xFF,
     ]
+    ret = self.ERR_DATA_READ
 
     for _ in range(self.BMV080_I2C_VALIDATE_RETRY):
       response = self._transferShortFrame(request, 6)
@@ -554,30 +648,25 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
         continue
 
       if response[0] != self.BMV080_I2C_SHORT_HEADER:
-        self._lastError = self.ERR_DATA_READ
+        ret = self.ERR_DATA_READ
         time.sleep(0.003)
         continue
 
       if response[1] == (self.BMV080_I2C_FUNC_WRITE_HOLDING | 0x80):
-        self._lastError = response[2]
-        return self._lastError
+        return int(response[2])
 
       if response != request:
-        self._lastError = self.ERR_DATA_READ
+        ret = self.ERR_DATA_READ
         time.sleep(0.003)
         continue
 
-      self._lastError = self.RET_CODE_OK
       return self.RET_CODE_OK
 
-    if self._lastError == self.RET_CODE_OK:
-      self._lastError = self.ERR_DATA_READ
-    return self._lastError
+    return ret
 
   def _writeMultiRegs(self, reg: int, data: List[int]) -> int:
     count = len(data)
     if count == 0 or count > self.BMV080_I2C_MAX_WRITE_REGS:
-      self._lastError = self.ERR_DATA_READ
       return self.RET_CODE_ERROR
 
     request = [
@@ -591,6 +680,7 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
     for value in data:
       request.append((value >> 8) & 0xFF)
       request.append(value & 0xFF)
+    ret = self.ERR_DATA_READ
 
     for _ in range(self.BMV080_I2C_VALIDATE_RETRY):
       response = self._transferShortFrame(request, 6)
@@ -598,31 +688,26 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
         continue
 
       if response[0] != self.BMV080_I2C_SHORT_HEADER:
-        self._lastError = self.ERR_DATA_READ
+        ret = self.ERR_DATA_READ
         time.sleep(0.003)
         continue
 
       if response[1] == (self.BMV080_I2C_FUNC_WRITE_MULTI_HOLDING | 0x80):
-        self._lastError = response[2]
-        return self._lastError
+        return int(response[2])
 
       resp_reg = ((response[2] << 8) | response[3]) & 0xFFFF
       resp_count = ((response[4] << 8) | response[5]) & 0xFFFF
       if response[1] != self.BMV080_I2C_FUNC_WRITE_MULTI_HOLDING or resp_reg != reg or resp_count != count:
-        self._lastError = self.ERR_DATA_READ
+        ret = self.ERR_DATA_READ
         time.sleep(0.003)
         continue
 
-      self._lastError = self.RET_CODE_OK
       return self.RET_CODE_OK
 
-    if self._lastError == self.RET_CODE_OK:
-      self._lastError = self.ERR_DATA_READ
-    return self._lastError
+    return ret
 
   def _transferShortFrame(self, request: List[int], response_len: int) -> Optional[List[int]]:
     if request is None or response_len <= 0 or len(request) <= 0 or len(request) > self.BMV080_I2C_MAX_FRAME_LEN or response_len > self.BMV080_I2C_MAX_FRAME_LEN:
-      self._lastError = self.ERR_DATA_READ
       return None
 
     if not self._ensureBus():
@@ -630,7 +715,6 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
 
     bus = self._bus
     if bus is None:
-      self._lastError = self.ERR_DATA_BUS
       return None
 
     req = [int(b) & 0xFF for b in request]
@@ -646,7 +730,6 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
           # SMBus block write: first byte is command, the rest are payload.
           bus.write_i2c_block_data(self._addr, req[0], req[1:])
       except Exception:
-        self._lastError = self.ERR_DATA_BUS
         time.sleep(0.002)
         continue
 
@@ -664,31 +747,28 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
             # Some platforms require a dummy command byte for block read.
             response = bus.read_i2c_block_data(self._addr, 0x00, response_len)
         except Exception:
-          self._lastError = self.ERR_DATA_READ
           time.sleep(0.002)
           continue
 
         if len(response) >= 3:
           if response[0] == self.BMV080_I2C_SHORT_HEADER and response[1] == ((req[1] & 0xFF) | 0x80):
-            self._lastError = response[2]
             return response[:3]
           if len(response) == response_len:
-            self._lastError = self.RET_CODE_OK
             return [int(v) & 0xFF for v in response]
         time.sleep(0.002)
 
-    if self._lastError == self.RET_CODE_OK:
-      self._lastError = self.ERR_DATA_READ
     return None
 
 
 class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
-  """UART Modbus RTU transport based on DFRobot_RTU.py."""
+  '''!
+    @brief UART Modbus RTU transport based on DFRobot_RTU.py.
+  '''
 
   def __init__(
     self,
     baud: int = 9600,
-    addr: int = DFRobot_BMV080_Gravity.DFRobot_BMV080_GRAVITY_DEFAULT_ADDR,
+    addr: int = DFRobot_BMV080_Gravity.DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR,
     bits: int = 8,
     parity: str = "N",
     stopbit: int = 1,
@@ -698,11 +778,14 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
     DFRobot_RTU.__init__(self, baud, bits, parity, stopbit)
 
   def setTimeoutTimeS(self, timeout_s: float) -> None:
+    '''!
+      @brief Set UART Modbus RTU timeout
+      @param timeout_s Timeout in seconds
+    '''
     self.set_timout_time_s(timeout_s)
 
   def writeHoldingReg(self, reg: int, data: List[int]) -> int:
     if data is None or len(data) == 0:
-      self._lastError = self.ERR_DATA_READ
       return self.RET_CODE_ERROR
 
     try:
@@ -715,10 +798,8 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
           payload.append(value & 0xFF)
         ret = self.write_holding_registers(self._addr, reg, payload)
     except Exception:
-      self._lastError = self.ERR_DATA_BUS
       return self.ERR_DATA_BUS
 
-    self._lastError = int(ret)
     return int(ret)
 
   def readHoldingReg(self, reg: int, count: int) -> Optional[List[int]]:
@@ -729,7 +810,6 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
 
   def _readRegistersByRtu(self, is_input: bool, reg: int, count: int) -> Optional[List[int]]:
     if count <= 0:
-      self._lastError = self.ERR_DATA_READ
       return None
 
     try:
@@ -738,21 +818,17 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
       else:
         data = self.read_holding_registers(self._addr, reg, count)
     except Exception:
-      self._lastError = self.ERR_DATA_BUS
       return None
 
     if data is None or len(data) < 1:
-      self._lastError = self.ERR_DATA_READ
       return None
 
     ret = int(data[0])
     if ret != self.RET_CODE_OK:
-      self._lastError = ret
       return None
 
     expected_len = 1 + (count * 2)
     if len(data) < expected_len:
-      self._lastError = self.ERR_DATA_READ
       return None
 
     regs = []
@@ -760,7 +836,6 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
       hi = data[1 + (i * 2)] & 0xFF
       lo = data[2 + (i * 2)] & 0xFF
       regs.append(((hi << 8) | lo) & 0xFFFF)
-    self._lastError = self.RET_CODE_OK
     return regs
 
 

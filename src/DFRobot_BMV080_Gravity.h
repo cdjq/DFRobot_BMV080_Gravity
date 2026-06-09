@@ -7,7 +7,7 @@
  * @license     The MIT License (MIT)
  * @author      DFRobot
  * @version     V1.0.0
- * @date        2026-05-11
+ * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
 
@@ -43,26 +43,8 @@
 #include "HardwareSerial.h"
 #endif
 
-#define DFRobot_BMV080_GRAVITY_DEFAULT_ADDR    0x57      ///< Default external I2C slave address and Modbus ID.
-#define DFRobot_BMV080_GRAVITY_PID             0x0296    ///< Product ID of DFRobot BMV080 Gravity firmware (SEN0662).
-#define DFRobot_BMV080_GRAVITY_VID             0x3343    ///< VID represents DFRobot.
-#define DFRobot_BMV080_GRAVITY_VERSION         0x1000    ///< Firmware library register version V1.0.0.
-#define DFRobot_BMV080_GRAVITY_REG_MAP_VERSION 0x0003    ///< Expected firmware register map version.
-
-/**
- * @def CONTINUOUS_MODE
- * @brief Continuous mode, the ESP32 firmware keeps BMV080 measuring continuously.
- */
-#define CONTINUOUS_MODE 0
-/**
- * @def DUTY_CYCLE_MODE
- * @brief Duty cycle mode, the ESP32 firmware measures periodically.
- */
-#define DUTY_CYCLE_MODE 1
-
-#define FAST_RESPONSE  1    ///< Fast response algorithm.
-#define BALANCED       2    ///< Balanced algorithm.
-#define HIGH_PRECISION 3    ///< High precision algorithm.
+#define DFRobot_BMV080_GRAVITY_DEFAULT_I2C_ADDR 0x57     ///< Default external I2C slave address.
+#define DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR 0x57     ///< Factory default UART Modbus RTU slave address.
 
 class DFRobot_BMV080_Gravity {
 public:
@@ -74,23 +56,12 @@ public:
 #define ERR_IC_VERSION 3
 
   /**
-   * @enum eAction_t
-   * @brief Values written to the action holding register.
-   * @details Action is a transient command and is not saved by the firmware.
-   */
-  typedef enum {
-    eStart = 1,    ///< Start measurement using REG_HOLDING_MEASURE_MODE
-    eStop  = 2,    ///< Stop measurement
-    eReset = 3,    ///< Reset BMV080 and restore default configuration
-  } eAction_t;
-
-  /**
    * @enum eMeasureMode_t
    * @brief BMV080 measurement mode cached in the ESP32 firmware.
    */
   typedef enum {
-    eContinuousMode = CONTINUOUS_MODE,    ///< Continuous measurement mode
-    eDutyCycleMode  = DUTY_CYCLE_MODE,    ///< Duty-cycle measurement mode
+    eContinuousMode = 0,    ///< Continuous measurement mode
+    eDutyCycleMode  = 1,    ///< Duty-cycle measurement mode
   } eMeasureMode_t;
 
   /**
@@ -98,9 +69,9 @@ public:
    * @brief BMV080 measurement algorithm selection.
    */
   typedef enum {
-    eFastResponse  = FAST_RESPONSE,     ///< Fast response algorithm
-    eBalanced      = BALANCED,          ///< Balanced algorithm
-    eHighPrecision = HIGH_PRECISION,    ///< High precision algorithm
+    eFastResponse  = 1,    ///< Fast response algorithm
+    eBalanced      = 2,    ///< Balanced algorithm
+    eHighPrecision = 3,    ///< High precision algorithm
   } eMeasurementAlgorithm_t;
 
   /**
@@ -120,7 +91,7 @@ public:
 
   /**
    * @enum eParity_t
-   * @brief UART parity field stored in the high byte of holding register 0x0001.
+   * @brief UART parity field stored in the high byte of holding register 0x0002.
    */
   typedef enum {
     eParityNone = 0x00,    ///< No parity
@@ -130,7 +101,7 @@ public:
 
   /**
    * @enum eStopBit_t
-   * @brief UART stop-bit field stored in the low byte of holding register 0x0001.
+   * @brief UART stop-bit field stored in the low byte of holding register 0x0002.
    * @note ESP32 firmware rejects 0.5 stop bit, so only 1, 1.5 and 2 stop bits are exposed.
    */
   typedef enum {
@@ -153,7 +124,7 @@ public:
   } eRunState_t;
 
   /**
-   * @struct sBmv080Data_t
+   * @struct sData_t
    * @brief PM data and state flags cached by the ESP32 firmware.
    */
   typedef struct {
@@ -171,289 +142,391 @@ public:
     bool     valueClamped;                 ///< Reserved compatibility flag (currently always false in float-register map)
     bool     valueInvalid;                 ///< Non-finite float from firmware side was sanitized before register write
     uint16_t sampleSeq;                    ///< Sample sequence number, increments each new measurement
-  } sBmv080Data_t;
+  } sData_t;
 
+  /**
+   * @fn DFRobot_BMV080_Gravity
+   * @brief Constructor.
+   */
   DFRobot_BMV080_Gravity(void);
+
+  /**
+   * @fn ~DFRobot_BMV080_Gravity
+   * @brief Destructor.
+   */
   virtual ~DFRobot_BMV080_Gravity(void);
 
   /**
    * @fn begin
-   * @brief Check whether the ESP32 BMV080 Gravity firmware is reachable.
-   * @return true if PID and VID are correct, false on bus error or version mismatch.
+   * @brief Initialize the module.
+   * @details Check whether compatible BMV080 Gravity firmware is reachable.
+   * @return Initialization status.
+   * @retval true Initialization succeeded.
+   * @retval false Initialization failed.
    */
   virtual bool begin(void);
 
   /**
-   * @fn getPID
-   * @brief Read product ID from input register 0x0000.
-   * @return PID, expected value is 0x0296.
+   * @fn getData
+   * @brief Read particulate matter measurement data.
+   * @details The function returns true only when the firmware reports new valid data.
+   * @param data Pointer to the data structure used to store PM1.0, PM2.5, PM10 and state flags.
+   * @return Whether new valid data was read.
+   * @retval true New data was read.
+   * @retval false No new data is available, or the read failed.
    */
-  uint16_t getPID(void);
+  bool getData(sData_t *data);
 
   /**
-   * @fn getVID
-   * @brief Read vendor ID from input register 0x0001.
-   * @return VID, expected value is 0x3343.
+   * @fn setMeasureMode
+   * @brief Set measurement mode and start measurement.
+   * @details Write the measurement-mode register, write the start action, then wait until the firmware reports the target run state.
+   * @param mode Measurement mode. See eMeasureMode_t.
+   * @n     eContinuousMode: Continuous measurement mode.
+   * @n     eDutyCycleMode: Duty-cycle measurement mode.
+   * @return Setting status.
+   * @retval 0 Setting succeeded.
+   * @retval -1 Invalid parameter.
+   * @retval 1 Communication error or firmware returned an error.
+   * @retval 2 Data read error or start-state timeout.
+   * @retval 3 Firmware version or device information error.
+   * @note When duty-cycle measurement is started, the firmware forces the algorithm to eFastResponse as required by the BMV080 SDK.
    */
-  uint16_t getVID(void);
+  int setMeasureMode(eMeasureMode_t mode);
 
   /**
-   * @fn getVersion
-   * @brief Read firmware register version.
-   * @return Version, for example 0x1000 means V1.0.0.
+   * @fn stopMeasurement
+   * @brief Stop the current measurement.
+   * @details Write the stop command to the action register.
+   * @return Stop command execution status.
+   * @retval true Stop command succeeded.
+   * @retval false Stop command failed.
    */
-  uint16_t getVersion(void);
+  bool stopMeasurement(void);
 
   /**
-   * @fn getRegMapVersion
-   * @brief Read firmware register map version.
-   * @return Register map version. Library and firmware must match for correct operation.
+   * @fn reset
+   * @brief Reset the sensor and restore default configuration.
+   * @details Write the reset command to the action register.
+   * @return Reset command execution status.
+   * @retval true Reset command succeeded.
+   * @retval false Reset command failed.
    */
-  uint16_t getRegMapVersion(void);
-
-  /**
-   * @fn getRunState
-   * @brief Read current firmware run state.
-   * @return See eRunState_t.
-   */
-  uint16_t getRunState(void);
-
-  /**
-   * @fn getStatus
-   * @brief Read last BMV080 SDK status code cached by the firmware.
-   * @return Last SDK status code.
-   * @retval 0 Operation successful
-   * @retval Non-zero Error code from Bosch BMV080 SDK
-   */
-  uint16_t getStatus(void);
-
-  /**
-   * @fn getBmv080DV
-   * @brief Read BMV080 SDK driver version cached by the firmware.
-   * @param major Major version.
-   * @param minor Minor version.
-   * @param patch Patch version.
-   * @return true if read succeeds.
-   */
-  bool getBmv080DV(uint16_t &major, uint16_t &minor, uint16_t &patch);
-
-  /**
-   * @fn getBmv080ID
-   * @brief Read the BMV080 sensor ID cached by the firmware.
-   * @param id Buffer to store sensor ID. The buffer must contain at least 13 bytes.
-   * @return true if read succeeds.
-   */
-  bool getBmv080ID(char *id);
-
-  /**
-   * @fn readBmv080Data
-   * @brief Read the full PM data cache from the ESP32 firmware.
-   * @param data Pointer to data structure.
-   * @return true if register read succeeds. Check dataReady for valid PM data.
-   */
-  bool readBmv080Data(sBmv080Data_t *data);
-
-  /**
-   * @fn getBmv080Data
-   * @brief Read PM data. Returns true only when new data is available.
-   * @param data Pointer to data structure. PM1, PM2_5, PM10, runtime, flags are filled on success.
-   * @return true if dataReady is set by the firmware, false otherwise.
-   */
-  bool getBmv080Data(sBmv080Data_t *data);
-
-  /**
-   * @fn setBmv080Mode
-   * @brief Start measurement by mode. This writes the action register.
-   * @param mode CONTINUOUS_MODE (0) or DUTY_CYCLE_MODE (1).
-   * @return 0 successful, -1 mode is invalid, other values are communication or firmware errors.
-   */
-  int setBmv080Mode(uint8_t mode);
-
-  /**
-   * @fn stopBmv080
-   * @brief Stop current BMV080 measurement through action value 2.
-   * @return true if the firmware accepts the action.
-   */
-  bool stopBmv080(void);
-
-  /**
-   * @fn resetBmv080
-   * @brief Reset BMV080 and restore default configuration through action value 3.
-   * @return true if the firmware accepts the action.
-   */
-  bool resetBmv080(void);
+  bool reset(void);
 
   /**
    * @fn setIntegrationTime
    * @brief Set measurement integration time.
+   * @details In duty-cycle mode, the duty-cycle period must be at least integration time plus 2 seconds.
    * @param integration_time Integration time in seconds.
-   * @return 0 successful, -1 invalid value, other values are firmware/communication errors.
+   * @n     The value must be greater than 0 and must not be NAN or INF.
+   * @return Setting status.
+   * @retval 0 Setting succeeded.
+   * @retval -1 Invalid parameter or duty-cycle period constraint was not met.
+   * @retval 1 Communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   * @note When increasing integration time beyond the current period margin, call setDutyCyclingPeriod() first.
    */
   int setIntegrationTime(float integration_time);
 
   /**
-   * @fn getIntegrationTime
-   * @brief Read integration time from holding register.
-   * @return Integration time in seconds, or NAN on read error.
-   */
-  float getIntegrationTime(void);
-
-  /**
    * @fn setDutyCyclingPeriod
-   * @brief Set duty-cycle period.
-   * @param duty_cycling_period Duty-cycle period in seconds.
-   * @return 0 successful, other values are firmware/communication errors.
+   * @brief Set duty-cycle measurement period.
+   * @details The period must be at least the current integration time plus 2 seconds.
+   * @param duty_cycling_period Duty-cycle measurement period in seconds.
+   * @n     The value must satisfy the current integration time plus 2 seconds constraint.
+   * @return Setting status.
+   * @retval 0 Setting succeeded.
+   * @retval -1 Invalid parameter or integration time read failed.
+   * @retval 1 Communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   * @note When shortening the duty-cycle period, call setIntegrationTime() first to lower integration time if needed.
    */
   int setDutyCyclingPeriod(uint16_t duty_cycling_period);
 
   /**
+   * @fn getIntegrationTime
+   * @brief Read measurement integration time.
+   * @return Integration time in seconds.
+   * @retval NAN Read failed.
+   */
+  float getIntegrationTime(void);
+
+  /**
    * @fn getDutyCyclingPeriod
-   * @brief Read duty-cycle period from holding register.
-   * @return Duty-cycle period in seconds, or 0 on read error.
+   * @brief Read duty-cycle measurement period.
+   * @return Duty-cycle measurement period in seconds.
+   * @retval 0 Read failed.
    */
   uint16_t getDutyCyclingPeriod(void);
+
 
   /**
    * @fn setObstructionDetection
    * @brief Enable or disable obstruction detection.
-   * @param enable true to enable, false to disable.
-   * @return true if the firmware accepts the value.
+   * @param enable Obstruction detection switch.
+   * @n     true: Enable obstruction detection.
+   * @n     false: Disable obstruction detection.
+   * @return Setting status.
+   * @retval true Setting succeeded.
+   * @retval false Setting failed.
    */
   bool setObstructionDetection(bool enable);
 
   /**
    * @fn getObstructionDetection
-   * @brief Read obstruction detection setting from holding register.
-   * @return 1 enabled, 0 disabled, -1 on read error.
+   * @brief Read obstruction detection switch state.
+   * @return Obstruction detection switch state.
+   * @retval 1 Enabled.
+   * @retval 0 Disabled.
+   * @retval -1 Read failed.
    */
   int getObstructionDetection(void);
 
   /**
-   * @fn setDoVibrationFiltering
+   * @fn setVibrationFiltering
    * @brief Enable or disable vibration filtering.
-   * @param enable true to enable, false to disable.
-   * @return true if the firmware accepts the value.
+   * @param enable Vibration filtering switch.
+   * @n     true: Enable vibration filtering.
+   * @n     false: Disable vibration filtering.
+   * @return Setting status.
+   * @retval true Setting succeeded.
+   * @retval false Setting failed.
    */
-  bool setDoVibrationFiltering(bool enable);
+  bool setVibrationFiltering(bool enable);
 
   /**
-   * @fn getDoVibrationFiltering
-   * @brief Read vibration filtering setting from holding register.
-   * @return 1 enabled, 0 disabled, -1 on read error.
+   * @fn getVibrationFiltering
+   * @brief Read vibration filtering switch state.
+   * @return Vibration filtering switch state.
+   * @retval 1 Enabled.
+   * @retval 0 Disabled.
+   * @retval -1 Read failed.
    */
-  int getDoVibrationFiltering(void);
+  int getVibrationFiltering(void);
 
   /**
    * @fn setMeasurementAlgorithm
-   * @brief Set BMV080 measurement algorithm.
-   * @param measurement_algorithm FAST_RESPONSE, BALANCED or HIGH_PRECISION.
-   * @return 0 successful, -1 invalid value, other values are firmware errors.
+   * @brief Set measurement algorithm.
+   * @param measurement_algorithm Measurement algorithm.
+   * @n     eFastResponse: Fast response algorithm.
+   * @n     eBalanced: Balanced algorithm.
+   * @n     eHighPrecision: High precision algorithm.
+   * @return Setting status.
+   * @retval 0 Setting succeeded.
+   * @retval -1 Invalid parameter.
+   * @retval 1 Communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   * @note When duty-cycle measurement is started, the firmware forces eFastResponse as required by the BMV080 SDK.
    */
-  int setMeasurementAlgorithm(uint8_t measurement_algorithm);
+  int setMeasurementAlgorithm(eMeasurementAlgorithm_t measurement_algorithm);
 
   /**
    * @fn getMeasurementAlgorithm
-   * @brief Read BMV080 measurement algorithm from holding register.
-   * @return FAST_RESPONSE, BALANCED, HIGH_PRECISION, or 0 on read error.
+   * @brief Read measurement algorithm.
+   * @return Current measurement algorithm.
+   * @retval eFastResponse Fast response algorithm.
+   * @retval eBalanced Balanced algorithm.
+   * @retval eHighPrecision High precision algorithm.
+   * @retval 0 Read failed or register value is invalid.
    */
-  uint8_t getMeasurementAlgorithm(void);
+  eMeasurementAlgorithm_t getMeasurementAlgorithm(void);
 
   /**
    * @fn setBaud
-   * @brief Save UART baud-rate setting in firmware NVS.
-   * @note The new baud rate takes effect after the ESP32 module restarts in UART mode.
-   * @param baud See eBaud_t.
-   * @return uint8_t 0 on success, other values are communication or firmware errors.
+   * @brief Set UART baud rate.
+   * @details Save the UART baud-rate setting to firmware NVS.
+   * @param baud Baud-rate enum value.
+   * @n     Available values: e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200.
+   * @return Setting status.
+   * @retval 0 Setting succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   * @note The new baud rate takes effect after restart.
    */
   uint8_t setBaud(eBaud_t baud);
 
   /**
    * @fn getBaud
-   * @brief Read UART baud-rate register value.
-   * @return See eBaud_t, or 0 on read error.
+   * @brief Read UART baud rate.
+   * @return Current baud rate in bps.
+   * @retval 0 Read failed.
+   * @note Invalid register values are parsed as the default 9600 bps.
    */
-  uint16_t getBaud(void);
-
-  /**
-   * @fn getBaudValue
-   * @brief Convert UART baud-rate register value to bps.
-   * @return Baud rate in bps, defaults to 9600 on invalid register value.
-   */
-  uint32_t getBaudValue(void);
+  uint32_t getBaud(void);
 
   /**
    * @fn setUartFormat
-   * @brief Save UART parity and stop-bit setting in firmware NVS.
-   * @note The new UART format takes effect after the ESP32 module restarts in UART mode.
-   * @param parity See eParity_t.
-   * @param stopBit See eStopBit_t, default eStopBit1.
-   * @return uint8_t 0 on success, other values are communication or firmware errors.
+   * @brief Set UART parity and stop bits.
+   * @details Save the UART frame-format setting to firmware NVS.
+   * @param parity Parity configuration.
+   * @n     eParityNone: No parity.
+   * @n     eParityEven: Even parity.
+   * @n     eParityOdd: Odd parity.
+   * @param stopBit Stop-bit configuration.
+   * @n     eStopBit1: 1 stop bit.
+   * @n     eStopBit1_5: 1.5 stop bits.
+   * @n     eStopBit2: 2 stop bits.
+   * @return Setting status.
+   * @retval 0 Setting succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   * @note The new UART frame format takes effect after restart.
    */
   uint8_t setUartFormat(eParity_t parity, eStopBit_t stopBit = eStopBit1);
 
   /**
    * @fn getUartFormat
-   * @brief Read UART parity/stop-bit register.
-   * @return High byte is parity, low byte is stop bit, or 0 on read error.
+   * @brief Read UART parity and stop-bit register value.
+   * @return UART frame-format register value.
+   * @retval 0 Read failed.
+   * @note The high byte is parity and the low byte is stop bits.
    */
   uint16_t getUartFormat(void);
 
-  /**
-   * @fn getLastError
-   * @brief Get the last transport or firmware exception code.
-   * @return uint8_t 0 for success. Modbus-style exception codes are returned when the firmware rejects a request.
-   */
-  uint8_t getLastError(void) const;
-
 protected:
+  /**
+   * @fn writeHoldingReg
+   * @brief Write holding registers.
+   * @param reg Start holding register address.
+   * @param data Pointer to the data buffer to write.
+   * @param count Number of registers to write.
+   * @n     The value must be greater than 0.
+   * @return Register write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   virtual uint8_t writeHoldingReg(uint16_t reg, const uint16_t *data, uint16_t count) = 0;
+
+  /**
+   * @fn readHoldingReg
+   * @brief Read holding registers.
+   * @param reg Start holding register address.
+   * @param data Pointer to the read data buffer.
+   * @param count Number of registers to read.
+   * @n     The value must be greater than 0.
+   * @return Register read status.
+   * @retval 0 Read succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   virtual uint8_t readHoldingReg(uint16_t reg, uint16_t *data, uint16_t count)        = 0;
+
+  /**
+   * @fn readInputReg
+   * @brief Read input registers.
+   * @param reg Start input register address.
+   * @param data Pointer to the read data buffer.
+   * @param count Number of registers to read.
+   * @n     The value must be greater than 0.
+   * @return Register read status.
+   * @retval 0 Read succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   virtual uint8_t readInputReg(uint16_t reg, uint16_t *data, uint16_t count)          = 0;
 
-  bool            readInputValue(uint16_t reg, uint16_t &value);
-  bool            readHoldingValue(uint16_t reg, uint16_t &value);
-  uint8_t         writeHoldingValue(uint16_t reg, uint16_t value);
-  uint8_t         writeHoldingValues(uint16_t reg, const uint16_t *data, uint16_t count);
-  static uint32_t baudRegToValue(uint16_t baudReg);
-
-  uint8_t       _lastError;
-  sBmv080Data_t _data;
-
 private:
+  typedef enum {
+    eStart = 1,
+    eStop  = 2,
+    eReset = 3,
+  } eAction_t;
+
+  /**
+   * @fn writeAction
+   * @brief Write an action command.
+   * @param action Action command.
+   * @n     eStart: Start measurement.
+   * @n     eStop: Stop measurement.
+   * @n     eReset: Reset the sensor and restore default configuration.
+   * @return Action command write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   uint8_t writeAction(eAction_t action);
 
-  enum {
-    REG_INPUT_PID             = 0x0000,    ///< Input: Product ID
-    REG_INPUT_VID             = 0x0001,    ///< Input: Vendor ID
-    REG_INPUT_VERSION         = 0x0002,    ///< Input: Firmware version
-    REG_INPUT_REG_MAP_VERSION = 0x0003,    ///< Input: Register map version
-    REG_INPUT_RUN_STATE       = 0x0004,    ///< Input: Run state
-    REG_INPUT_LAST_STATUS     = 0x0005,    ///< Input: Last SDK status
-    REG_INPUT_PM1_F32_HI      = 0x0006,    ///< Input: PM1.0 float32 high word
-    REG_INPUT_PM1_F32_LO      = 0x0007,    ///< Input: PM1.0 float32 low word
-    REG_INPUT_PM25_F32_HI     = 0x0008,    ///< Input: PM2.5 float32 high word
-    REG_INPUT_PM25_F32_LO     = 0x0009,    ///< Input: PM2.5 float32 low word
-    REG_INPUT_PM10_F32_HI     = 0x000A,    ///< Input: PM10 float32 high word
-    REG_INPUT_PM10_F32_LO     = 0x000B,    ///< Input: PM10 float32 low word
-    REG_INPUT_RUNTIME_F32_HI  = 0x000C,    ///< Input: Runtime float32 high word
-    REG_INPUT_RUNTIME_F32_LO  = 0x000D,    ///< Input: Runtime float32 low word
-    REG_INPUT_FLAGS           = 0x000E,    ///< Input: Status flags
-    REG_INPUT_SAMPLE_SEQ      = 0x000F,    ///< Input: Sample sequence counter
-    REG_INPUT_DRIVER_MAJOR    = 0x0010,    ///< Input: Driver major version
-    REG_INPUT_DRIVER_MINOR    = 0x0011,    ///< Input: Driver minor version
-    REG_INPUT_DRIVER_PATCH    = 0x0012,    ///< Input: Driver patch version
-    REG_INPUT_SENSOR_ID0      = 0x0013,    ///< Input: Sensor ID (first word)
+  /**
+   * @fn readData
+   * @brief Read the full particulate matter data cache.
+   * @details Read PM data, run state and state flags from input registers.
+   * @param data Pointer to the data structure.
+   * @return Read status.
+   * @retval true Read succeeded.
+   * @retval false Invalid parameter or read failed.
+   */
+  bool readData(sData_t *data);
 
-    REG_HOLDING_BAUDRATE           = 0x0000,    ///< Holding: Baud rate enum
-    REG_HOLDING_VERIFY_STOP        = 0x0001,    ///< Holding: Parity/stop bits
-    REG_HOLDING_ACTION             = 0x0002,    ///< Holding: Action command
-    REG_HOLDING_MEASURE_MODE       = 0x0003,    ///< Holding: Measurement mode
-    REG_HOLDING_ALGORITHM          = 0x0004,    ///< Holding: Algorithm selection
-    REG_HOLDING_OBSTRUCTION        = 0x0005,    ///< Holding: Obstruction detection
-    REG_HOLDING_VIBRATION          = 0x0006,    ///< Holding: Vibration filtering
-    REG_HOLDING_INTEGRATION_F32_HI = 0x0007,    ///< Holding: Integration time float32 high word
-    REG_HOLDING_INTEGRATION_F32_LO = 0x0008,    ///< Holding: Integration time float32 low word
-    REG_HOLDING_DUTY_PERIOD_S      = 0x0009,    ///< Holding: Duty cycle period
+
+  /**
+   * @fn readHoldingValue
+   * @brief Read one holding register value.
+   * @param reg Holding register address.
+   * @param value Reference used to store the read value.
+   * @return Read status.
+   * @retval true Read succeeded.
+   * @retval false Read failed.
+   */
+  bool readHoldingValue(uint16_t reg, uint16_t &value);
+
+  /**
+   * @fn writeHoldingValue
+   * @brief Write one holding register value.
+   * @param reg Holding register address.
+   * @param value Register value to write.
+   * @return Write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
+  uint8_t writeHoldingValue(uint16_t reg, uint16_t value);
+
+  /**
+   * @fn writeHoldingValues
+   * @brief Write multiple holding register values.
+   * @param reg Start holding register address.
+   * @param data Pointer to the data buffer to write.
+   * @param count Number of registers to write.
+   * @n     The value must be greater than 0.
+   * @return Write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
+  uint8_t writeHoldingValues(uint16_t reg, const uint16_t *data, uint16_t count);
+
+  /**
+   * @fn baudRegToValue
+   * @brief Convert a baud-rate register enum value to the actual baud rate.
+   * @param baudReg Baud-rate register enum value.
+   * @n     Available values: e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200.
+   * @return Actual baud rate in bps.
+   * @retval 9600 Default baud rate returned when the register value is invalid.
+   */
+  static uint32_t baudRegToValue(uint16_t baudReg);
+
+  sData_t _data;
+
+  enum {
+    EXPECTED_PID             = 0x0296,
+    EXPECTED_VID             = 0x3343,
+    EXPECTED_REG_MAP_VERSION = 0x0004,
+
+    REG_INPUT_PID       = 0x0000,    ///< Input: Product ID
+    REG_INPUT_RUN_STATE = 0x0004,    ///< Input: Run state
+
+    REG_HOLDING_BAUDRATE           = 0x0001,    ///< Holding: Baud rate enum
+    REG_HOLDING_VERIFY_STOP        = 0x0002,    ///< Holding: Parity/stop bits
+    REG_HOLDING_ACTION             = 0x0003,    ///< Holding: Action command
+    REG_HOLDING_MEASURE_MODE       = 0x0004,    ///< Holding: Measurement mode
+    REG_HOLDING_ALGORITHM          = 0x0005,    ///< Holding: Algorithm selection
+    REG_HOLDING_OBSTRUCTION        = 0x0006,    ///< Holding: Obstruction detection
+    REG_HOLDING_VIBRATION          = 0x0007,    ///< Holding: Vibration filtering
+    REG_HOLDING_INTEGRATION_F32_HI = 0x0008,    ///< Holding: Integration time float32 high word
+    REG_HOLDING_INTEGRATION_F32_LO = 0x0009,    ///< Holding: Integration time float32 low word
+    REG_HOLDING_DUTY_PERIOD_S      = 0x000A,    ///< Holding: Duty cycle period
 
     INPUT_FLAG_OBSTRUCTED      = 1U << 0,    ///< Obstruction detected
     INPUT_FLAG_OUTSIDE_RANGE   = 1U << 1,    ///< Outside measurement range
@@ -469,25 +542,136 @@ class DFRobot_BMV080_Gravity_I2C : public DFRobot_BMV080_Gravity {
 public:
   /**
    * @fn DFRobot_BMV080_Gravity_I2C
-   * @brief Constructor of I2C transport class.
-   * @param pWire Pointer to TwoWire object.
-   * @param addr External I2C slave address selected by A0/A1, default is 0x57.
+   * @brief I2C transport class constructor.
+   * @param pWire Pointer to the TwoWire object.
+   * @param addr Module I2C slave address.
+   * @n     Default value is 0x57.
    */
-  DFRobot_BMV080_Gravity_I2C(TwoWire *pWire, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_ADDR);
+  DFRobot_BMV080_Gravity_I2C(TwoWire *pWire, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_I2C_ADDR);
+
+  /**
+   * @fn ~DFRobot_BMV080_Gravity_I2C
+   * @brief I2C transport class destructor.
+   */
   virtual ~DFRobot_BMV080_Gravity_I2C(void);
 
+  /**
+   * @fn begin
+   * @brief Initialize I2C communication and detect the module.
+   * @details Initialize the TwoWire bus, then call the base begin() to finish firmware compatibility checks.
+   * @return Initialization status.
+   * @retval true Initialization succeeded.
+   * @retval false Initialization failed.
+   */
   bool begin(void);
+
+  /**
+   * @fn setTimeoutTimeMs
+   * @brief Set I2C communication timeout.
+   * @param timeout Timeout in milliseconds.
+   */
   void setTimeoutTimeMs(uint32_t timeout);
 
 protected:
+  /**
+   * @fn writeHoldingReg
+   * @brief Write holding registers through I2C.
+   * @param reg Start holding register address.
+   * @param data Pointer to the data buffer to write.
+   * @param count Number of registers to write.
+   * @n     The value must be greater than 0.
+   * @return Register write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   uint8_t writeHoldingReg(uint16_t reg, const uint16_t *data, uint16_t count);
+
+  /**
+   * @fn readHoldingReg
+   * @brief Read holding registers through I2C.
+   * @param reg Start holding register address.
+   * @param data Pointer to the read data buffer.
+   * @param count Number of registers to read.
+   * @n     The value must be greater than 0.
+   * @return Register read status.
+   * @retval 0 Read succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   uint8_t readHoldingReg(uint16_t reg, uint16_t *data, uint16_t count);
+
+  /**
+   * @fn readInputReg
+   * @brief Read input registers through I2C.
+   * @param reg Start input register address.
+   * @param data Pointer to the read data buffer.
+   * @param count Number of registers to read.
+   * @n     The value must be greater than 0.
+   * @return Register read status.
+   * @retval 0 Read succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   uint8_t readInputReg(uint16_t reg, uint16_t *data, uint16_t count);
 
 private:
+  /**
+   * @fn readRegs
+   * @brief Read registers through an I2C short frame.
+   * @param func Modbus function code.
+   * @n     0x03: Read holding registers.
+   * @n     0x04: Read input registers.
+   * @param reg Start register address.
+   * @param data Pointer to the read data buffer.
+   * @param count Number of registers to read.
+   * @n     Range: 1 to BMV080_I2C_MAX_READ_REGS.
+   * @return Read status.
+   * @retval 0 Read succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   uint8_t readRegs(uint8_t func, uint16_t reg, uint16_t *data, uint16_t count);
+
+  /**
+   * @fn writeSingleReg
+   * @brief Write one holding register through an I2C short frame.
+   * @param reg Holding register address.
+   * @param value Register value to write.
+   * @return Write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   uint8_t writeSingleReg(uint16_t reg, uint16_t value);
+
+  /**
+   * @fn writeMultiRegs
+   * @brief Write multiple holding registers through an I2C short frame.
+   * @param reg Start holding register address.
+   * @param data Pointer to the data buffer to write.
+   * @param count Number of registers to write.
+   * @n     Range: 1 to BMV080_I2C_MAX_WRITE_REGS.
+   * @return Write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   */
   uint8_t writeMultiRegs(uint16_t reg, const uint16_t *data, uint16_t count);
+
+  /**
+   * @fn transferShortFrame
+   * @brief Transfer an I2C short frame.
+   * @param request Pointer to the request frame buffer.
+   * @param requestLen Request frame length.
+   * @n     Range: 1 to BMV080_I2C_MAX_FRAME_LEN.
+   * @param response Pointer to the response frame buffer.
+   * @param responseLen Expected response frame length.
+   * @n     Range: 1 to BMV080_I2C_MAX_FRAME_LEN.
+   * @return Short-frame transfer status.
+   * @retval true Transfer succeeded.
+   * @retval false Transfer failed.
+   */
   bool    transferShortFrame(const uint8_t *request, uint8_t requestLen, uint8_t *response, uint8_t responseLen);
 
   TwoWire *_pWire;
@@ -500,28 +684,83 @@ public:
 #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
   /**
    * @fn DFRobot_BMV080_Gravity_UART
-   * @brief Constructor of UART Modbus RTU transport class for SoftwareSerial platforms.
+   * @brief UART Modbus RTU transport class constructor.
+   * @param sSerial Pointer to the SoftwareSerial object.
+   * @param baud Current UART baud rate.
+   * @param addr Current UART Modbus RTU slave address.
+   * @n     Default value is 0x57.
    */
-  DFRobot_BMV080_Gravity_UART(SoftwareSerial *sSerial, uint32_t baud, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_ADDR);
+  DFRobot_BMV080_Gravity_UART(SoftwareSerial *sSerial, uint32_t baud, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR);
 #else
   /**
    * @fn DFRobot_BMV080_Gravity_UART
-   * @brief Constructor of UART Modbus RTU transport class.
-   * @param hSerial Pointer to HardwareSerial object.
+   * @brief UART Modbus RTU transport class constructor.
+   * @param hSerial Pointer to the HardwareSerial object.
    * @param baud Current UART baud rate.
-   * @param addr External Modbus ID selected by A0/A1, default is 0x57.
-   * @param rxpin MCU RX pin connected to module TX. On ESP32 default is GPIO25.
-   * @param txpin MCU TX pin connected to module RX. On ESP32 default is GPIO26.
+   * @param addr Current UART Modbus RTU slave address.
+   * @n     Default value is 0x57.
+   * @param rxpin MCU RX pin connected to the module TX pin.
+   * @n     ESP32 uses GPIO25 by default.
+   * @param txpin MCU TX pin connected to the module RX pin.
+   * @n     ESP32 uses GPIO26 by default.
    */
-  DFRobot_BMV080_Gravity_UART(HardwareSerial *hSerial, uint32_t baud, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_ADDR, uint8_t rxpin = 0, uint8_t txpin = 0);
+  DFRobot_BMV080_Gravity_UART(HardwareSerial *hSerial, uint32_t baud, uint8_t addr = DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR, uint8_t rxpin = 0, uint8_t txpin = 0);
 #endif
+
+  /**
+   * @fn ~DFRobot_BMV080_Gravity_UART
+   * @brief UART Modbus RTU transport class destructor.
+   */
   virtual ~DFRobot_BMV080_Gravity_UART(void);
 
+  /**
+   * @fn begin
+   * @brief Initialize UART communication and detect the module.
+   * @details Initialize the serial port, then call the base begin() to finish firmware compatibility checks.
+   * @return Initialization status.
+   * @retval true Initialization succeeded.
+   * @retval false Initialization failed.
+   */
   bool begin(void);
 
 protected:
+  /**
+   * @fn writeHoldingReg
+   * @brief Write holding registers through UART Modbus RTU.
+   * @param reg Start holding register address.
+   * @param data Pointer to the data buffer to write.
+   * @param count Number of registers to write.
+   * @n     The value must be greater than 0.
+   * @return Register write status.
+   * @retval 0 Write succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   */
   uint8_t writeHoldingReg(uint16_t reg, const uint16_t *data, uint16_t count);
+
+  /**
+   * @fn readHoldingReg
+   * @brief Read holding registers through UART Modbus RTU.
+   * @param reg Start holding register address.
+   * @param data Pointer to the read data buffer.
+   * @param count Number of registers to read.
+   * @n     The value must be greater than 0.
+   * @return Register read status.
+   * @retval 0 Read succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   */
   uint8_t readHoldingReg(uint16_t reg, uint16_t *data, uint16_t count);
+
+  /**
+   * @fn readInputReg
+   * @brief Read input registers through UART Modbus RTU.
+   * @param reg Start input register address.
+   * @param data Pointer to the read data buffer.
+   * @param count Number of registers to read.
+   * @n     The value must be greater than 0.
+   * @return Register read status.
+   * @retval 0 Read succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   */
   uint8_t readInputReg(uint16_t reg, uint16_t *data, uint16_t count);
 
 private:

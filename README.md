@@ -26,9 +26,9 @@ The library does **not** include the Bosch BMV080 SDK and does not expose `open`
 - Supports continuous and duty-cycle measurement modes
 - Read PM1.0, PM2.5 and PM10 mass concentration data
 - Configure measurement parameters: integration time, duty-cycle period, algorithm selection, obstruction detection, vibration filtering
-- Read runtime state and flags from `sBmv080Data_t`
-- `sBmv080Data_t` includes `valueInvalid` to indicate non-finite source data sanitization
-- Configure UART communication parameters: baud rate, parity, stop bits (saved to module NVS)
+- Read PM data and state flags through `sData_t`
+- Configure UART baud rate, parity and stop bits (saved to module NVS)
+- Duty-cycle measurement starts with the `eFastResponse` algorithm as required by the BMV080 SDK
 
 ## Installation
 
@@ -52,172 +52,243 @@ git clone https://github.com/DFRobot/DFRobot_BMV080_Gravity.git
 
 /**
  * @fn begin
- * @brief Check whether the ESP32 BMV080 Gravity firmware is reachable.
- * @return true if PID and VID are correct, false on bus error or version mismatch.
+ * @brief Initialize the module.
+ * @details Check whether compatible BMV080 Gravity firmware is reachable.
+ * @return Initialization status.
+ * @retval true Initialization succeeded.
+ * @retval false Initialization failed.
  */
 virtual bool begin(void);
 
 /**
- * @fn getBmv080Data
- * @brief Read PM data. Returns true only when new data is available.
- * @param data Pointer to data structure. PM1, PM2_5, PM10, runtime, flags are filled on success.
- * @return true if dataReady is set by the firmware, false otherwise.
+ * @fn getData
+ * @brief Read particulate matter measurement data.
+ * @details The function returns true only when the firmware reports new valid data.
+ * @param data Pointer to the data structure used to store PM1.0, PM2.5, PM10 and state flags.
+ * @return Whether new valid data was read.
+ * @retval true New data was read.
+ * @retval false No new data is available, or the read failed.
  */
-bool getBmv080Data(sBmv080Data_t *data);
+bool getData(sData_t *data);
 
 /**
- * @fn setBmv080Mode
- * @brief Start measurement by mode. This writes the action register.
- * @param mode CONTINUOUS_MODE (0) or DUTY_CYCLE_MODE (1).
- * @return 0 successful, -1 mode is invalid, other values are communication or firmware errors.
+ * @fn setMeasureMode
+ * @brief Set measurement mode and start measurement.
+ * @details Write the measurement-mode register, write the start action, then wait until the firmware reports the target run state.
+ * @param mode Measurement mode. See eMeasureMode_t.
+ * @n     eContinuousMode: Continuous measurement mode.
+ * @n     eDutyCycleMode: Duty-cycle measurement mode.
+ * @return Setting status.
+ * @retval 0 Setting succeeded.
+ * @retval -1 Invalid parameter.
+ * @retval 1 Communication error or firmware returned an error.
+ * @retval 2 Data read error or start-state timeout.
+ * @retval 3 Firmware version or device information error.
+ * @note When duty-cycle measurement is started, the firmware forces the algorithm to eFastResponse as required by the BMV080 SDK.
  */
-int setBmv080Mode(uint8_t mode);
+int setMeasureMode(eMeasureMode_t mode);
 
 /**
- * @fn stopBmv080
- * @brief Stop current BMV080 measurement.
- * @return true if the firmware accepts the action.
+ * @fn stopMeasurement
+ * @brief Stop the current measurement.
+ * @details Write the stop command to the action register.
+ * @return Stop command execution status.
+ * @retval true Stop command succeeded.
+ * @retval false Stop command failed.
  */
-bool stopBmv080(void);
+bool stopMeasurement(void);
 
 /**
- * @fn resetBmv080
- * @brief Reset BMV080 and restore default configuration.
- * @return true if the firmware accepts the action.
+ * @fn reset
+ * @brief Reset the sensor and restore default configuration.
+ * @details Write the reset command to the action register.
+ * @return Reset command execution status.
+ * @retval true Reset command succeeded.
+ * @retval false Reset command failed.
  */
-bool resetBmv080(void);
+bool reset(void);
 
 /**
  * @fn setIntegrationTime
  * @brief Set measurement integration time.
+ * @details In duty-cycle mode, the duty-cycle period must be at least integration time plus 2 seconds.
  * @param integration_time Integration time in seconds.
- * @return 0 successful, -1 invalid value, other values are firmware errors.
+ * @n     The value must be greater than 0 and must not be NAN or INF.
+ * @return Setting status.
+ * @retval 0 Setting succeeded.
+ * @retval -1 Invalid parameter or duty-cycle period constraint was not met.
+ * @retval 1 Communication error or firmware returned an error.
+ * @retval 2 Data read error.
+ * @note When increasing integration time beyond the current period margin, call setDutyCyclingPeriod() first.
  */
 int setIntegrationTime(float integration_time);
 
 /**
- * @fn getIntegrationTime
- * @brief Read integration time from holding register.
- * @return Integration time in seconds, or NAN on read error.
- */
-float getIntegrationTime(void);
-
-/**
  * @fn setDutyCyclingPeriod
- * @brief Set duty-cycle period.
- * @param duty_cycling_period Duty-cycle period in seconds.
- * @return 0 successful, other values are firmware errors.
+ * @brief Set duty-cycle measurement period.
+ * @details The period must be at least the current integration time plus 2 seconds.
+ * @param duty_cycling_period Duty-cycle measurement period in seconds.
+ * @n     The value must satisfy the current integration time plus 2 seconds constraint.
+ * @return Setting status.
+ * @retval 0 Setting succeeded.
+ * @retval -1 Invalid parameter or integration time read failed.
+ * @retval 1 Communication error or firmware returned an error.
+ * @retval 2 Data read error.
+ * @note When shortening the duty-cycle period, call setIntegrationTime() first to lower integration time if needed.
  */
 int setDutyCyclingPeriod(uint16_t duty_cycling_period);
 
 /**
+ * @fn getIntegrationTime
+ * @brief Read measurement integration time.
+ * @return Integration time in seconds.
+ * @retval NAN Read failed.
+ */
+float getIntegrationTime(void);
+
+/**
  * @fn getDutyCyclingPeriod
- * @brief Read duty-cycle period from holding register.
- * @return Duty-cycle period in seconds, or 0 on read error.
+ * @brief Read duty-cycle measurement period.
+ * @return Duty-cycle measurement period in seconds.
+ * @retval 0 Read failed.
  */
 uint16_t getDutyCyclingPeriod(void);
 
 /**
  * @fn setObstructionDetection
  * @brief Enable or disable obstruction detection.
- * @param enable true to enable, false to disable.
- * @return true if the firmware accepts the value.
+ * @param enable Obstruction detection switch.
+ * @n     true: Enable obstruction detection.
+ * @n     false: Disable obstruction detection.
+ * @return Setting status.
+ * @retval true Setting succeeded.
+ * @retval false Setting failed.
  */
 bool setObstructionDetection(bool enable);
 
 /**
  * @fn getObstructionDetection
- * @brief Read obstruction detection setting from holding register.
- * @return 1 enabled, 0 disabled, -1 on read error.
+ * @brief Read obstruction detection switch state.
+ * @return Obstruction detection switch state.
+ * @retval 1 Enabled.
+ * @retval 0 Disabled.
+ * @retval -1 Read failed.
  */
 int getObstructionDetection(void);
 
 /**
- * @fn setDoVibrationFiltering
+ * @fn setVibrationFiltering
  * @brief Enable or disable vibration filtering.
- * @param enable true to enable, false to disable.
- * @return true if the firmware accepts the value.
+ * @param enable Vibration filtering switch.
+ * @n     true: Enable vibration filtering.
+ * @n     false: Disable vibration filtering.
+ * @return Setting status.
+ * @retval true Setting succeeded.
+ * @retval false Setting failed.
  */
-bool setDoVibrationFiltering(bool enable);
+bool setVibrationFiltering(bool enable);
 
 /**
- * @fn getDoVibrationFiltering
- * @brief Read vibration filtering setting from holding register.
- * @return 1 enabled, 0 disabled, -1 on read error.
+ * @fn getVibrationFiltering
+ * @brief Read vibration filtering switch state.
+ * @return Vibration filtering switch state.
+ * @retval 1 Enabled.
+ * @retval 0 Disabled.
+ * @retval -1 Read failed.
  */
-int getDoVibrationFiltering(void);
+int getVibrationFiltering(void);
 
 /**
  * @fn setMeasurementAlgorithm
- * @brief Set BMV080 measurement algorithm.
- * @param measurement_algorithm FAST_RESPONSE(1), BALANCED(2) or HIGH_PRECISION(3).
- * @return 0 successful, -1 invalid value, other values are firmware errors.
+ * @brief Set measurement algorithm.
+ * @param measurement_algorithm Measurement algorithm.
+ * @n     eFastResponse: Fast response algorithm.
+ * @n     eBalanced: Balanced algorithm.
+ * @n     eHighPrecision: High precision algorithm.
+ * @return Setting status.
+ * @retval 0 Setting succeeded.
+ * @retval -1 Invalid parameter.
+ * @retval 1 Communication error or firmware returned an error.
+ * @retval 2 Data read error.
+ * @note When duty-cycle measurement is started, the firmware forces eFastResponse as required by the BMV080 SDK.
  */
-int setMeasurementAlgorithm(uint8_t measurement_algorithm);
+int setMeasurementAlgorithm(eMeasurementAlgorithm_t measurement_algorithm);
 
 /**
  * @fn getMeasurementAlgorithm
- * @brief Read BMV080 measurement algorithm from holding register.
- * @return FAST_RESPONSE(1), BALANCED(2), HIGH_PRECISION(3), or 0 on read error.
+ * @brief Read measurement algorithm.
+ * @return Current measurement algorithm.
+ * @retval eFastResponse Fast response algorithm.
+ * @retval eBalanced Balanced algorithm.
+ * @retval eHighPrecision High precision algorithm.
+ * @retval 0 Read failed or register value is invalid.
  */
-uint8_t getMeasurementAlgorithm(void);
+eMeasurementAlgorithm_t getMeasurementAlgorithm(void);
 
 /**
  * @fn setBaud
- * @brief Save UART baud-rate setting in firmware NVS.
- * @note The new baud rate takes effect after the ESP32 module restarts in UART mode.
- * @param baud See eBaud_t.
- * @return uint8_t 0 on success, other values are communication or firmware errors.
+ * @brief Set UART baud rate.
+ * @details Save the UART baud-rate setting to firmware NVS.
+ * @param baud Baud-rate enum value.
+ * @n     Available values: e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200.
+ * @return Setting status.
+ * @retval 0 Setting succeeded.
+ * @retval 1 Invalid parameter, communication error or firmware returned an error.
+ * @retval 2 Data read error.
+ * @note The new baud rate takes effect after restart.
  */
 uint8_t setBaud(eBaud_t baud);
 
 /**
  * @fn getBaud
- * @brief Read UART baud-rate register value.
- * @return See eBaud_t, or 0 on read error.
+ * @brief Read UART baud rate.
+ * @return Current baud rate in bps.
+ * @retval 0 Read failed.
+ * @note Invalid register values are parsed as the default 9600 bps.
  */
-uint16_t getBaud(void);
-
-/**
- * @fn getBaudValue
- * @brief Convert UART baud-rate register value to bps.
- * @return Baud rate in bps, defaults to 9600 on invalid register value.
- */
-uint32_t getBaudValue(void);
+uint32_t getBaud(void);
 
 /**
  * @fn setUartFormat
- * @brief Save UART parity and stop-bit setting in firmware NVS.
- * @note The new UART format takes effect after the ESP32 module restarts in UART mode.
- * @param parity See eParity_t.
- * @param stopBit See eStopBit_t, default eStopBit1.
- * @return uint8_t 0 on success, other values are communication or firmware errors.
+ * @brief Set UART parity and stop bits.
+ * @details Save the UART frame-format setting to firmware NVS.
+ * @param parity Parity configuration.
+ * @n     eParityNone: No parity.
+ * @n     eParityEven: Even parity.
+ * @n     eParityOdd: Odd parity.
+ * @param stopBit Stop-bit configuration.
+ * @n     eStopBit1: 1 stop bit.
+ * @n     eStopBit1_5: 1.5 stop bits.
+ * @n     eStopBit2: 2 stop bits.
+ * @return Setting status.
+ * @retval 0 Setting succeeded.
+ * @retval 1 Invalid parameter, communication error or firmware returned an error.
+ * @retval 2 Data read error.
+ * @note The new UART frame format takes effect after restart.
  */
 uint8_t setUartFormat(eParity_t parity, eStopBit_t stopBit = eStopBit1);
 
 /**
  * @fn getUartFormat
- * @brief Read UART parity/stop-bit register.
- * @return High byte is parity, low byte is stop bit, or 0 on read error.
+ * @brief Read UART parity and stop-bit register value.
+ * @return UART frame-format register value.
+ * @retval 0 Read failed.
+ * @note The high byte is parity and the low byte is stop bits.
  */
 uint16_t getUartFormat(void);
-
-/**
- * @fn getLastError
- * @brief Get the last transport or firmware exception code.
- * @return uint8_t 0 for success. Modbus-style exception codes are returned when the firmware rejects a request.
- */
-uint8_t getLastError(void) const;
 ```
+
+For library debugging, uncomment `ENABLE_DBG` in `src/DFRobot_BMV080_Gravity.h`. Internal failures will then print their error codes through `DBG`.
+
+UART Modbus RTU address changes are intentionally not wrapped by this library. Use a serial/Modbus tool to change the module address, then pass the current address to `DFRobot_BMV080_Gravity_UART`.
 
 ## Examples
 
-- `consecutiveRead`: Continuous measurement and PM data read example. Demonstrates `begin()`, `setBmv080Mode()`, `getBmv080Data()`, `getLastError()`, `sBmv080Data_t` fields.
-- `consecutiveInterrupt`: Continuous measurement with external interrupt. Demonstrates interrupt-driven data collection using the BMV080 INT pin.
-- `dutyCycleRead`: Duty-cycle measurement with full parameter configuration example. Demonstrates `setIntegrationTime()` / `getIntegrationTime()`, `setDutyCyclingPeriod()` / `getDutyCyclingPeriod()`, `setMeasurementAlgorithm()` / `getMeasurementAlgorithm()`, `setObstructionDetection()` / `getObstructionDetection()`, `setDoVibrationFiltering()` / `getDoVibrationFiltering()`, `setBmv080Mode()`, `stopBmv080()`.
+- `continuousRead`: Continuous measurement and PM data read example. Demonstrates `begin()`, `setMeasureMode()`, `getData()`, and `sData_t` fields.
+- `continuousInterrupt`: Continuous measurement with external interrupt. Demonstrates interrupt-driven data collection using the BMV080 INT pin.
+- `dutyCycleRead`: Duty-cycle measurement with parameter configuration. Demonstrates `setIntegrationTime()`, `setDutyCyclingPeriod()`, algorithm and filter settings, and `setMeasureMode()`.
 - `dutyCycleInterrupt`: Duty-cycle measurement with external interrupt. Demonstrates interrupt-driven data collection in periodic measurement mode.
-- `readModuleInfo`: Module information read example. Demonstrates `getPID()`, `getVID()`, `getVersion()`, `getRegMapVersion()`, `getRunState()`, `getStatus()`, `getBmv080DV()`, `getBmv080ID()`.
-- `setBaudUartFormat`: UART baud rate, parity and stop-bit configuration example. Demonstrates `setBaud()` / `getBaud()` / `getBaudValue()`, `setUartFormat()` / `getUartFormat()`.
+- `setBaudUartFormat`: UART baud rate, parity and stop-bit configuration example. Demonstrates `setBaud()` / `getBaud()`, `setUartFormat()` / `getUartFormat()`.
 
 ## Compatibility
 
@@ -232,9 +303,9 @@ uint8_t getLastError(void) const;
 
 ## History
 
-- Date 2026-05-11
+- Date 2026-06-09
 - Version V1.0.0
 
 ## Credits
 
-Written by DFRobot (welcom@dfrobot.com), 2026. (Welcome to our website)
+Written by thdyyl<yuanlong.yu@dfrobot.com>, 2026. (Welcome to our website)

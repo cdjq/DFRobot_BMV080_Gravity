@@ -8,9 +8,10 @@
  * @license     The MIT License (MIT)
  * @author      DFRobot
  * @version     V1.0.0
- * @date        2026-05-11
+ * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
+#include <Wire.h>
 #include "DFRobot_BMV080_Gravity.h"
 
 /* >> 1. Please choose your communication method below:
@@ -21,7 +22,9 @@
 #define BMV080_COMM_I2C
 
 /**
- * The external address is selected by A0/A1 and shared by I2C slave address and Modbus ID.
+ * I2C_ADDR is selected by A0/A1 pins.
+ * UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
+ * use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
  * --------------------------------------
  * |    A0     |    A1     |  Address   |
  * --------------------------------------
@@ -31,7 +34,8 @@
  * |     1     |     1     |   0x57     |
  * --------------------------------------
  */
-const uint8_t ADDR = 0x57;
+const uint8_t I2C_ADDR  = 0x57;
+const uint8_t UART_ADDR = 0x57;
 
 #if defined(BMV080_COMM_UART)
 /* ---------------------------------------------------------------------------------------------------------------------
@@ -44,14 +48,14 @@ const uint8_t ADDR = 0x57;
 #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
 #include <SoftwareSerial.h>
 SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
-DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
+DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, UART_ADDR);
 #elif defined(ESP32)
-DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =*/26);
 #else
-DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
 #elif defined(BMV080_COMM_I2C)
-DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+DFRobot_BMV080_Gravity_I2C sensor(&Wire, I2C_ADDR);
 #else
 #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
 #endif
@@ -68,45 +72,40 @@ void setup()
   }
 
   while (!sensor.begin()) {
-    Serial.print("Sensor init failed, last error: ");
-    Serial.println(sensor.getLastError());
+    Serial.println("Sensor init failed.");
     delay(1000);
   }
   Serial.println("BMV080 Gravity init succeeded.");
 
   /**
-   * Save UART baud rate (holding register 0x0000).
+   * Save UART baud rate (holding register 0x0001).
    * Available baud rates:
    *   e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200
    */
   if (sensor.setBaud(DFRobot_BMV080_Gravity::e115200) == 0) {
     Serial.println("Baud register saved as 115200.");
   } else {
-    Serial.print("Set baud failed, last error: ");
-    Serial.println(sensor.getLastError());
+    Serial.println("Set baud failed.");
   }
 
   /**
-   * Save UART parity and stop-bit (holding register 0x0001).
+   * Save UART parity and stop-bit (holding register 0x0002).
    * Parity:  eParityNone / eParityEven / eParityOdd
    * StopBit: eStopBit1 / eStopBit1_5 / eStopBit2
    */
   if (sensor.setUartFormat(DFRobot_BMV080_Gravity::eParityNone, DFRobot_BMV080_Gravity::eStopBit1) == 0) {
     Serial.println("UART format saved (8-N-1).");
   } else {
-    Serial.print("Set UART format failed, last error: ");
-    Serial.println(sensor.getLastError());
+    Serial.println("Set UART format failed.");
   }
 
   /**
    * Read back registers for verification.
-   * Use getBaud to read the register value, getBaudValue to get the actual bps.
+   * Use getBaud to read the actual baud rate in bps.
    * Use getUartFormat to read the combined parity/stop-bit register.
    */
-  Serial.print("Baud Register: 0x");
-  Serial.println(sensor.getBaud(), HEX);
-  Serial.print("Baud Value: ");
-  Serial.print(sensor.getBaudValue());
+  Serial.print("Baud: ");
+  Serial.print(sensor.getBaud());
   Serial.println(" bps");
 
   fmtReg = sensor.getUartFormat();

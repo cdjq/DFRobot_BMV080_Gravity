@@ -13,48 +13,32 @@ DFRobot_BMV080_Gravity_UART	KEYWORD1
 ###########################################
 
 begin	KEYWORD2
-getPID	KEYWORD2
-getVID	KEYWORD2
-getVersion	KEYWORD2
-getRegMapVersion	KEYWORD2
-getRunState	KEYWORD2
-getStatus	KEYWORD2
-getBmv080DV	KEYWORD2
-getBmv080ID	KEYWORD2
-readBmv080Data	KEYWORD2
-getBmv080Data	KEYWORD2
-setBmv080Mode	KEYWORD2
-stopBmv080	KEYWORD2
-resetBmv080	KEYWORD2
+getData	KEYWORD2
+setMeasureMode	KEYWORD2
+stopMeasurement	KEYWORD2
+reset	KEYWORD2
 setIntegrationTime	KEYWORD2
-getIntegrationTime	KEYWORD2
 setDutyCyclingPeriod	KEYWORD2
-getDutyCyclingPeriod	KEYWORD2
 setObstructionDetection	KEYWORD2
 getObstructionDetection	KEYWORD2
-setDoVibrationFiltering	KEYWORD2
-getDoVibrationFiltering	KEYWORD2
+setVibrationFiltering	KEYWORD2
+getVibrationFiltering	KEYWORD2
 setMeasurementAlgorithm	KEYWORD2
 getMeasurementAlgorithm	KEYWORD2
 setBaud	KEYWORD2
 getBaud	KEYWORD2
-getBaudValue	KEYWORD2
 setUartFormat	KEYWORD2
 getUartFormat	KEYWORD2
-getLastError	KEYWORD2
 setTimeoutTimeMs	KEYWORD2
 
 ###########################################
 # Constants
 ###########################################
 
-DFRobot_BMV080_GRAVITY_DEFAULT_ADDR	LITERAL1
-DFRobot_BMV080_GRAVITY_PID	LITERAL1
-DFRobot_BMV080_GRAVITY_VID	LITERAL1
-DFRobot_BMV080_GRAVITY_VERSION	LITERAL1
-DFRobot_BMV080_GRAVITY_REG_MAP_VERSION	LITERAL1
-CONTINUOUS_MODE	LITERAL1
-DUTY_CYCLE_MODE	LITERAL1
-FAST_RESPONSE	LITERAL1
-BALANCED	LITERAL1
-HIGH_PRECISION	LITERAL1
+DFRobot_BMV080_GRAVITY_DEFAULT_I2C_ADDR	LITERAL1
+DFRobot_BMV080_GRAVITY_DEFAULT_RTU_ADDR	LITERAL1
+eContinuousMode	LITERAL1
+eDutyCycleMode	LITERAL1
+eFastResponse	LITERAL1
+eBalanced	LITERAL1
+eHighPrecision	LITERAL1

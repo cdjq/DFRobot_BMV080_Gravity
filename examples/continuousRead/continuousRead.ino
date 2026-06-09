@@ -1,5 +1,5 @@
 /**
- * @file  consecutiveRead.ino
+ * @file  continuousRead.ino
  * @brief  Read PM1.0, PM2.5 and PM10 mass concentration from BMV080 Gravity firmware in continuous measurement mode.
  * @n  This demo starts continuous measurement and polls PM data every 100 ms.
  * @n  The BMV080 Gravity module firmware manages the sensor handle and measurement state internally.
@@ -9,9 +9,10 @@
  * @license     The MIT License (MIT)
  * @author      DFRobot
  * @version     V1.0.0
- * @date        2026-05-11
+ * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
+#include <Wire.h>
 #include "DFRobot_BMV080_Gravity.h"
 
 /* >> 1. Please choose your communication method below:
@@ -22,7 +23,9 @@
 #define BMV080_COMM_I2C
 
 /**
- * The external address is selected by A0/A1 and shared by I2C slave address and Modbus ID.
+ * I2C_ADDR is selected by A0/A1 pins.
+ * UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
+ * use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
  * --------------------------------------
  * |    A0     |    A1     |  Address   |
  * --------------------------------------
@@ -32,7 +35,8 @@
  * |     1     |     1     |   0x57     |
  * --------------------------------------
  */
-const uint8_t ADDR = 0x57;
+const uint8_t I2C_ADDR  = 0x57;
+const uint8_t UART_ADDR = 0x57;
 
 #if defined(BMV080_COMM_UART)
 /* ---------------------------------------------------------------------------------------------------------------------
@@ -45,14 +49,14 @@ const uint8_t ADDR = 0x57;
 #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
 #include <SoftwareSerial.h>
 SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
-DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, ADDR);
+DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, UART_ADDR);
 #elif defined(ESP32)
-DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR, /*rx =*/25, /*tx =*/26);
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =*/26);
 #else
-DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, ADDR);
+DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
 #elif defined(BMV080_COMM_I2C)
-DFRobot_BMV080_Gravity_I2C sensor(&Wire, ADDR);
+DFRobot_BMV080_Gravity_I2C sensor(&Wire, I2C_ADDR);
 #else
 #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
 #endif
@@ -65,60 +69,44 @@ void setup()
   }
 
   while (!sensor.begin()) {
-    Serial.print("Sensor init failed, last error: ");
-    Serial.println(sensor.getLastError());
+    Serial.println("Sensor init failed.");
     delay(1000);
   }
   Serial.println("BMV080 Gravity init succeeded.");
 
   /**
    * Start continuous measurement.
-   * setBmv080Mode(CONTINUOUS_MODE) writes action value 1.
+   * setMeasureMode(eContinuousMode) writes action value 1.
    * The firmware will keep the sensor measuring continuously.
    */
-  if (sensor.setBmv080Mode(CONTINUOUS_MODE) == 0) {
+  if (sensor.setMeasureMode(DFRobot_BMV080_Gravity::eContinuousMode) == 0) {
     Serial.println("Continuous measurement started.");
   } else {
-    Serial.print("Start failed, last error: ");
-    Serial.println(sensor.getLastError());
+    Serial.println("Start measurement failed.");
   }
 }
 
 void loop()
 {
-  DFRobot_BMV080_Gravity::sBmv080Data_t data;
+  DFRobot_BMV080_Gravity::sData_t data;
 
   /**
    * Read PM data from firmware.
-   * getBmv080Data returns true only when dataReady flag is set.
-   * All PM values, runtime, flags (isObstructed, paramsVerified, etc.) are in the struct.
+   * getData returns true only when dataReady flag is set.
    */
-  if (sensor.getBmv080Data(&data)) {
+  if (sensor.getData(&data)) {
     Serial.print("PM1.0: ");
     Serial.print(data.PM1);
     Serial.print(" ug/m3  PM2.5: ");
     Serial.print(data.PM2_5);
     Serial.print(" ug/m3  PM10: ");
     Serial.print(data.PM10);
-    Serial.print(" ug/m3  runtime: ");
-    Serial.print(data.runtime);
-    Serial.print(" s  runState: ");
-    Serial.print(data.runState);
-
+    Serial.print(" ug/m3 ");
     if (data.isObstructed) {
       Serial.print("  Obstructed");
     }
     if (data.isOutsideMeasurementRange) {
       Serial.print("  Outside range");
-    }
-    if (data.paramsVerified) {
-      Serial.print("  ParamsVerified");
-    }
-    if (data.valueClamped) {
-      Serial.print("  ValueClamped");
-    }
-    if (data.valueInvalid) {
-      Serial.print("  ValueInvalid");
     }
     Serial.println();
   }
