@@ -11,14 +11,8 @@
  * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
-#include <Wire.h>
-
 #include "DFRobot_BMV080_Gravity.h"
 
-/* >> 1. Please choose your communication method below:
- * I2C mode: set module GPIO4 HIGH before ESP32 firmware boots.
- * UART mode: set module GPIO4 LOW before ESP32 firmware boots.
- */
 // #define BMV080_COMM_UART
 #define BMV080_COMM_I2C
 
@@ -60,6 +54,8 @@ SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
 DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, UART_ADDR);
 #elif defined(ESP32)
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =*/26);
+#elif defined(ARDUINO_BBC_MICROBIT) && !defined(ARDUINO_BBC_MICROBIT_V2)
+#error "BBC micro:bit (nRF51, sandeepmistry/nRF5): Serial1 is not defined. Use I2C in this sketch (#define HUMANPOSE_COMM_I2C) or a board with Serial1."
 #else
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
@@ -84,15 +80,31 @@ void setup()
 
   /**
    * Configure duty-cycle timing parameters.
-   * @param DUTY_CYCLE_PERIOD  Total cycle time (seconds)
-   * @param INTEGRATION_TIME   Sensor ON time per cycle (seconds)
+   *
+   * DUTY_CYCLE_PERIOD is the total cycle time in seconds.
+   * INTEGRATION_TIME is the sensor ON/measuring time in each cycle.
+   *
+   * In duty-cycle mode, DUTY_CYCLE_PERIOD must be at least
+   * INTEGRATION_TIME + 2 seconds. The example values below are valid:
+   * 30 seconds >= 10 seconds + 2 seconds.
+   *
+   * Configuration order matters when changing existing settings:
+   * - If increasing INTEGRATION_TIME beyond the current period margin,
+   *   call setDutyCyclingPeriod() first to enlarge the period.
+   * - If shortening DUTY_CYCLE_PERIOD, lower INTEGRATION_TIME first when
+   *   the new period would be less than integration time + 2 seconds.
    */
   if (sensor.setDutyCyclingPeriod(DUTY_CYCLE_PERIOD) != 0) {
     Serial.println("Set duty-cycle period failed.");
   }
+  Serial.print("DutyCycle: ");
+  Serial.println(sensor.getDutyCyclingPeriod());
+
   if (sensor.setIntegrationTime(INTEGRATION_TIME) != 0) {
     Serial.println("Set integration time failed.");
   }
+  Serial.print("IntegrationTime: ");
+  Serial.println(sensor.getIntegrationTime());
 
   /**
    * Configure measurement algorithm and filtering options.
@@ -129,6 +141,14 @@ void loop()
 
   /**
    * getData returns true only when a new duty-cycle sample is ready.
+   *
+   * data contains:
+   *   PM1 / PM2_5 / PM10: PM1.0, PM2.5 and PM10 mass concentration (ug/m3)
+   *   runtime: sensor runtime in seconds
+   *   runState/status: firmware run state and status code
+   *   isObstructed / isOutsideMeasurementRange: warning flags
+   *   measuring / paramsVerified: current measurement state flags
+   *   sampleSeq: sample sequence number
    */
   if (sensor.getData(&data)) {
     Serial.print("PM1.0: ");

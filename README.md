@@ -2,14 +2,21 @@
 
 * [中文版](./README_CN.md)
 
-DFRobot_BMV080_Gravity is an Arduino library for the DFRobot BMV080 Gravity module firmware.
+DFRobot_BMV080_Gravity is an Arduino library for the DFRobot BMV080 Gravity PM2.5 sensor module, used to read PM1.0, PM2.5 and PM10 particulate matter concentration data.
 
-The BMV080 is a particulate matter sensor managed by an ESP32 firmware on the module. This user library communicates with the firmware's register table through:
+The BMV080 sensor core, developed by Bosch, is the world's smallest PM air quality sensor — over 450 times smaller than comparable products on the market. Despite its ultra-compact size, it delivers precise PM2.5, PM1.0 and PM10 measurements.
+
+Unlike traditional PM sensors that rely on fans or ducts to draw particles into the detection zone (causing fan noise, dust accumulation, and maintenance headaches), the BMV080 uses a camera-like laser-optics principle to calculate mass concentration from particles freely moving in open space. It leverages ambient airflow to transport particles into the detection area, eliminating fans entirely — improving reliability and reducing maintenance.
+
+The BMV080 sensor on the module is managed by an ESP32 firmware. This library communicates with the module firmware through:
 
 - **I2C** — Short register frames (0xA5 prefix), fast for local communication
 - **UART** — Standard Modbus RTU protocol, suitable for longer distances
 
 The library does **not** include the Bosch BMV080 SDK and does not expose `open` or `close` APIs — the ESP32 firmware owns the BMV080 sensor handle.
+
+## Product Link（[https://www.dfrobot.com](https://www.dfrobot.com)）
+    SKU:SEN0662
 
 ## Table of Contents
 
@@ -48,6 +55,21 @@ git clone https://github.com/DFRobot/DFRobot_BMV080_Gravity.git
 
 ## Methods
 
+`getData()` fills `sData_t` only when a new PM sample is ready. The returned data fields are:
+
+- `PM1`, `PM2_5`, `PM10`: PM1.0, PM2.5 and PM10 mass concentration in ug/m3
+- `runtime`: Sensor runtime in seconds
+- `runState`: Current firmware run state, see `eRunState_t`
+- `status`: Last BMV080 SDK/firmware status code
+- `isObstructed`: Obstruction detected
+- `isOutsideMeasurementRange`: PM value is outside the reliable measurement range
+- `dataReady`: New PM data is available; `getData()` returns `true` only when this flag is set
+- `measuring`: Sensor is currently measuring
+- `paramsVerified`: Measurement parameters have been applied to the sensor
+- `valueClamped`: Reserved compatibility flag
+- `valueInvalid`: Non-finite PM/runtime value was sanitized by firmware
+- `sampleSeq`: Sample sequence number, increments for each new measurement
+
 ```C++
 
 /**
@@ -64,7 +86,7 @@ virtual bool begin(void);
  * @fn getData
  * @brief Read particulate matter measurement data.
  * @details The function returns true only when the firmware reports new valid data.
- * @param data Pointer to the data structure used to store PM1.0, PM2.5, PM10 and state flags.
+ * @param data Pointer to sData_t used to store PM concentration, runtime, run state and state flags.
  * @return Whether new valid data was read.
  * @retval true New data was read.
  * @retval false No new data is available, or the read failed.
@@ -288,18 +310,20 @@ UART Modbus RTU address changes are intentionally not wrapped by this library. U
 - `continuousInterrupt`: Continuous measurement with external interrupt. Demonstrates interrupt-driven data collection using the BMV080 INT pin.
 - `dutyCycleRead`: Duty-cycle measurement with parameter configuration. Demonstrates `setIntegrationTime()`, `setDutyCyclingPeriod()`, algorithm and filter settings, and `setMeasureMode()`.
 - `dutyCycleInterrupt`: Duty-cycle measurement with external interrupt. Demonstrates interrupt-driven data collection in periodic measurement mode.
-- `setBaudUartFormat`: UART baud rate, parity and stop-bit configuration example. Demonstrates `setBaud()` / `getBaud()`, `setUartFormat()` / `getUartFormat()`.
+- `setBaud`: UART baud rate, parity and stop-bit configuration example. Demonstrates `setBaud()` / `getBaud()`, `setUartFormat()` / `getUartFormat()`.
 
 ## Compatibility
 
 | MCU                | Work Well | Work Wrong | Untested | Remarks |
 | ------------------ |:---------:|:----------:|:--------:| ------- |
-| ATmega328          |     √     |            |          |         |
-| ATmega2560         |     √     |            |          |         |
-| ESP32              |     √     |            |          |         |
-| ESP8266             |           |            |    √     |         |
-| micro:bit          |           |            |    √     |         |
-| Raspberry Pi Pico  |           |            |    √     |         |
+| Arduino uno        |  √        |            |          |         |
+| Mega2560           |  √        |            |          |         |
+| Leonardo           |  √        |            |          |         |
+| ESP32              |  √        |            |          |         |
+| ESP8266            |  √        |            |          |         |
+| FireBeetle M0      |  √        |            |          |         |
+| micro:bit          |  √        |            |          |         |
+| Raspberry Pi 4B    |  √        |            |          |         |
 
 ## History
 

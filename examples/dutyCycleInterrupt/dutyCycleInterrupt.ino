@@ -3,9 +3,10 @@
  * @brief  Read PM data from BMV080 Gravity firmware in duty-cycle mode with external interrupt.
  * @n  The BMV080's INT pin is brought out on the module. Connect it to the host MCU's interrupt pin.
  * @n  In duty-cycle mode, the sensor wakes periodically, measures for integration_time seconds,
- * @n  then toggles INT when data is ready, and sleeps for the remainder of the period.
- * @n  The INT pin only tells the host to service a firmware event. The main loop
- * @n  still checks getData(), which returns true only when new PM data is ready.
+ * @n  then reports an INT event when data is ready, and sleeps for the remainder of the period.
+ * @n  This demo watches the falling edge of INT. The ISR only sets a flag; I2C/UART
+ * @n  communication and Serial printing are handled in loop().
+ * @n  The main loop still checks getData(), which returns true only when a new PM sample is ready.
  * @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
  * @license     The MIT License (MIT)
  * @author      DFRobot
@@ -13,8 +14,6 @@
  * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
-#include <Wire.h>
-
 #include "DFRobot_BMV080_Gravity.h"
 
 /* >> 1. Please choose your communication method below: */
@@ -38,16 +37,6 @@ const uint8_t I2C_ADDR  = 0x57;
 const uint8_t UART_ADDR = 0x57;
 
 /**
- * Interrupt pin configuration.
- * Connect the BMV080 module's INT pin to this host MCU pin.
- */
-#if defined(ESP32)
-#define IRQ_PIN 14
-#else
-#define IRQ_PIN 2
-#endif
-
-/**
  * Duty-cycle timing parameters.
  * @param DUTY_CYCLE_PERIOD    Total cycle time in seconds.
  * @param INTEGRATION_TIME     Sensor ON time per cycle in seconds.
@@ -55,11 +44,17 @@ const uint8_t UART_ADDR = 0x57;
 #define DUTY_CYCLE_PERIOD 30
 #define INTEGRATION_TIME  10.0f
 
-volatile bool dataFlag = false;
+volatile uint8_t dataFlag = 0;
 
+#if defined(ESP8266)
+void IRAM_ATTR onInterrupt(void)
+#else
 void onInterrupt(void)
+#endif
 {
-  dataFlag = true;
+  if (dataFlag == 0) {
+    dataFlag = 1;
+  }
 }
 
 #if defined(BMV080_COMM_UART)
@@ -76,6 +71,8 @@ SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
 DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, UART_ADDR);
 #elif defined(ESP32)
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =*/26);
+#elif defined(ARDUINO_BBC_MICROBIT) && !defined(ARDUINO_BBC_MICROBIT_V2)
+#error "BBC micro:bit (nRF51, sandeepmistry/nRF5): Serial1 is not defined. Use I2C in this sketch (#define HUMANPOSE_COMM_I2C) or a board with Serial1."
 #else
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
@@ -99,14 +96,32 @@ void setup()
   Serial.println("BMV080 Gravity init succeeded.");
 
   /**
-   * Configure duty-cycle timing.
+   * Configure duty-cycle timing parameters.
+   *
+   * DUTY_CYCLE_PERIOD is the total cycle time in seconds.
+   * INTEGRATION_TIME is the sensor ON/measuring time in each cycle.
+   *
+   * In duty-cycle mode, DUTY_CYCLE_PERIOD must be at least
+   * INTEGRATION_TIME + 2 seconds. The example values below are valid:
+   * 30 seconds >= 10 seconds + 2 seconds.
+   *
+   * Configuration order matters when changing existing settings:
+   * - If increasing INTEGRATION_TIME beyond the current period margin,
+   *   call setDutyCyclingPeriod() first to enlarge the period.
+   * - If shortening DUTY_CYCLE_PERIOD, lower INTEGRATION_TIME first when
+   *   the new period would be less than integration time + 2 seconds.
    */
   if (sensor.setDutyCyclingPeriod(DUTY_CYCLE_PERIOD) != 0) {
     Serial.println("Set duty-cycle period failed.");
   }
+  Serial.print("DutyCycle: ");
+  Serial.println(sensor.getDutyCyclingPeriod());
+
   if (sensor.setIntegrationTime(INTEGRATION_TIME) != 0) {
     Serial.println("Set integration time failed.");
   }
+  Serial.print("IntegrationTime: ");
+  Serial.println(sensor.getIntegrationTime());
 
   /**
    * Configure measurement algorithm and filtering.
@@ -137,20 +152,72 @@ void setup()
   /**
    * Configure hardware interrupt on the BMV080 INT pin.
    * Each measurement cycle completes with an INT pulse.
+   * The callback must stay short: only set dataFlag, then return.
    */
-  pinMode(IRQ_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(IRQ_PIN), onInterrupt, RISING);
-  Serial.print("Interrupt enabled on pin ");
-  Serial.println(IRQ_PIN);
+#if defined(ESP32)
+  // D6 pin is used as interrupt pin by default, other non-conflicting pins can also be selected as external interrupt pins.
+  pinMode(14 /*D6*/, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(14 /*D6*/) /* Query the interrupt number of the D6 pin */, onInterrupt, FALLING);
+#elif defined(ESP8266)
+#if defined(BMV080_COMM_UART)
+  const uint8_t interruptPin = 12;
+#elif defined(BMV080_COMM_I2C)
+  const uint8_t interruptPin = 13;
+#else
+#error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
+#endif
+  pinMode(interruptPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), onInterrupt, FALLING);
+#elif defined(ARDUINO_SAM_ZERO) || defined(ARDUINO_SAMD_ZERO)
+  // Pin 6 is used as interrupt pin by default, other non-conflicting pins can also be selected as external interrupt pins.
+  pinMode(6, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(6) /* Query the interrupt number of the 6 pin */, onInterrupt, FALLING);
+#else
+  /* The Correspondence Table of AVR Series Arduino Interrupt Pins And Terminal Numbers
+     * ---------------------------------------------------------------------------------------
+     * |                                        |  DigitalPin  | 2  | 3  |                   |
+     * |    Uno, Nano, Mini, other 328-based    |--------------------------------------------|
+     * |                                        | Interrupt No | 0  | 1  |                   |
+     * |-------------------------------------------------------------------------------------|
+     * |                                        |    Pin       | 2  | 3  | 21 | 20 | 19 | 18 |
+     * |               Mega2560                 |--------------------------------------------|
+     * |                                        | Interrupt No | 0  | 1  | 2  | 3  | 4  | 5  |
+     * |-------------------------------------------------------------------------------------|
+     * |                                        |    Pin       | 3  | 2  | 0  | 1  | 7  |    |
+     * |    Leonardo, other 32u4-based          |--------------------------------------------|
+     * |                                        | Interrupt No | 0  | 1  | 2  | 3  | 4  |    |
+     * |--------------------------------------------------------------------------------------
+     * ---------------------------------------------------------------------------------------------------------------------------------------------
+     *                      The Correspondence Table of micro:bit Interrupt Pins And Terminal Numbers
+     * ---------------------------------------------------------------------------------------------------------------------------------------------
+     * |             micro:bit                       | DigitalPin | P0-P20 can be used as an external interrupt                                    |
+     * |                                             |---------------------------------------------------------------------------------------------|
+     * |                                             |Interrupt No| Interrupt number is a pin digital value, such as P0 interrupt number 0, P1 is 1 |
+     * |-------------------------------------------------------------------------------------------------------------------------------------------|
+     */
+#if defined(ARDUINO_AVR_LEONARDO) || defined(ARDUINO_AVR_MICRO)
+  pinMode(3, INPUT_PULLUP);
+#elif defined(ARDUINO_BBC_MICROBIT) || defined(ARDUINO_BBC_MICROBIT_V2)
+  pinMode(0, INPUT_PULLUP);
+#else
+  pinMode(2, INPUT_PULLUP);
+#endif
+  attachInterrupt(/*Interrupt No*/ 0, onInterrupt, FALLING);    // Open the external interrupt 0, connect INT to the digital pin of the main control:
+                                                                // UNO(2), Mega2560(2), Leonardo(3), microbit(P0).
+#endif
 }
 
 void loop()
 {
   DFRobot_BMV080_Gravity::sData_t data;
 
-  if (dataFlag) {
+  if (dataFlag == 1) {
+    dataFlag = 0;
+    /**
+     * getData fills data with PM concentrations, runtime, runState/status,
+     * warning flags such as isObstructed/isOutsideMeasurementRange, and sampleSeq.
+     */
     if (sensor.getData(&data)) {
-      dataFlag = false;
       Serial.print("PM1.0: ");
       Serial.print(data.PM1);
       Serial.print(" ug/m3  PM2.5: ");

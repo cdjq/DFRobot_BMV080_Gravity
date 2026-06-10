@@ -59,7 +59,6 @@ DFRobot_BMV080_Gravity::~DFRobot_BMV080_Gravity(void) {}
 bool DFRobot_BMV080_Gravity::begin(void)
 {
   uint16_t regs[4] = { 0 };
-  bool     commOk  = false;
   uint8_t  ret     = RET_CODE_ERROR;
 
   // Some host/slave pairs may return one stale frame right after boot/mode switch.
@@ -67,7 +66,6 @@ bool DFRobot_BMV080_Gravity::begin(void)
   for (uint8_t i = 0; i < BMV080_I2C_SHORTFRAME_RETRY; i++) {
     ret = readInputReg(REG_INPUT_PID, regs, 4);
     if (ret == RET_CODE_OK) {
-      commOk = true;
       if ((regs[0] == EXPECTED_PID) && (regs[1] == EXPECTED_VID) && (regs[3] == EXPECTED_REG_MAP_VERSION)) {
         return true;
       }
@@ -595,9 +593,9 @@ bool DFRobot_BMV080_Gravity_I2C::transferShortFrame(const uint8_t *request, uint
 }
 
 #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
-DFRobot_BMV080_Gravity_UART::DFRobot_BMV080_Gravity_UART(SoftwareSerial *sSerial, uint32_t baud, uint8_t addr) : DFRobot_RTU(sSerial), _serial(sSerial), _baud(baud), _addr(addr), _rxpin(0), _txpin(0) {}
+DFRobot_BMV080_Gravity_UART::DFRobot_BMV080_Gravity_UART(SoftwareSerial *sSerial, uint32_t baud, uint8_t addr) : DFRobot_RTU(sSerial), _serial(sSerial), _baud(baud), _addr(addr) {}
 #else
-DFRobot_BMV080_Gravity_UART::DFRobot_BMV080_Gravity_UART(HardwareSerial *hSerial, uint32_t baud, uint8_t addr, uint8_t rxpin, uint8_t txpin) : DFRobot_RTU(hSerial), _serial(hSerial), _baud(baud), _addr(addr), _rxpin(rxpin), _txpin(txpin) {}
+DFRobot_BMV080_Gravity_UART::DFRobot_BMV080_Gravity_UART(HardwareSerial *hSerial, uint32_t baud, uint8_t addr, uint8_t rxpin, uint8_t txpin) : DFRobot_RTU(hSerial), _serial(hSerial), _rxpin(rxpin), _txpin(txpin), _baud(baud), _addr(addr) {}
 #endif
 
 DFRobot_BMV080_Gravity_UART::~DFRobot_BMV080_Gravity_UART(void) {}

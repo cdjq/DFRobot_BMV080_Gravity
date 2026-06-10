@@ -4,7 +4,6 @@
  * @n  This demo starts continuous measurement and polls PM data every 100 ms.
  * @n  The BMV080 Gravity module firmware manages the sensor handle and measurement state internally.
  * @n  The module supports two external communication modes: I2C slave and UART Modbus RTU.
- * @n  Select the communication mode with the macro below, matching the module's GPIO4 level at boot.
  * @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
  * @license     The MIT License (MIT)
  * @author      DFRobot
@@ -12,14 +11,8 @@
  * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
-#include <Wire.h>
-
 #include "DFRobot_BMV080_Gravity.h"
 
-/* >> 1. Please choose your communication method below:
- * I2C mode: set module GPIO4 HIGH before ESP32 firmware boots.
- * UART mode: set module GPIO4 LOW before ESP32 firmware boots.
- */
 // #define BMV080_COMM_UART
 #define BMV080_COMM_I2C
 
@@ -53,6 +46,8 @@ SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
 DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, UART_ADDR);
 #elif defined(ESP32)
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =*/26);
+#elif defined(ARDUINO_BBC_MICROBIT) && !defined(ARDUINO_BBC_MICROBIT_V2)
+#error "BBC micro:bit (nRF51, sandeepmistry/nRF5): Serial1 is not defined. Use I2C in this sketch (#define HUMANPOSE_COMM_I2C) or a board with Serial1."
 #else
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
@@ -94,6 +89,14 @@ void loop()
   /**
    * Read PM data from firmware.
    * getData returns true only when dataReady flag is set.
+   *
+   * data contains:
+   *   PM1 / PM2_5 / PM10: PM1.0, PM2.5 and PM10 mass concentration (ug/m3)
+   *   runtime: sensor runtime in seconds
+   *   runState/status: firmware run state and status code
+   *   isObstructed / isOutsideMeasurementRange: warning flags
+   *   measuring / paramsVerified: current measurement state flags
+   *   sampleSeq: sample sequence number
    */
   if (sensor.getData(&data)) {
     Serial.print("PM1.0: ");

@@ -2,16 +2,20 @@
 
 * [中文版](./README_CN.md)
 
-DFRobot_BMV080_Gravity is a Python library for the DFRobot BMV080 Gravity module firmware on Raspberry Pi.
+DFRobot_BMV080_Gravity is a Python library for the DFRobot BMV080 Gravity PM2.5 sensor module on Raspberry Pi, used to read PM1.0, PM2.5 and PM10 particulate matter concentration data.
 
-The BMV080 is a particulate matter sensor managed by ESP32 firmware on the module. This Python library communicates with the firmware register table through:
+The BMV080 sensor core, developed by Bosch, is the world's smallest PM air quality sensor — over 450 times smaller than comparable products on the market. Despite its ultra-compact size, it delivers precise PM2.5, PM1.0 and PM10 measurements.
+
+Unlike traditional PM sensors that rely on fans or ducts to draw particles into the detection zone (causing fan noise, dust accumulation, and maintenance headaches), the BMV080 uses a camera-like laser-optics principle to calculate mass concentration from particles freely moving in open space. It leverages ambient airflow to transport particles into the detection area, eliminating fans entirely — improving reliability and reducing maintenance.
+
+The BMV080 sensor on the module is managed by an ESP32 firmware. This library communicates with the module firmware through:
 
 - **I2C** — Short register frames with a 0xA5 header
 - **UART** — Standard Modbus RTU protocol through `DFRobot_RTU.py`
 
 The Python library does **not** include the Bosch BMV080 SDK and does not expose `open` or `close` APIs. The ESP32 firmware owns the BMV080 sensor handle.
 
-## Product Link (https://www.dfrobot.com)
+## Product Link（[https://www.dfrobot.com](https://www.dfrobot.com)）
 
     SKU: SEN0662
 
@@ -29,7 +33,7 @@ The Python library does **not** include the Bosch BMV080 SDK and does not expose
 Python driver for DFRobot BMV080 Gravity modules on Raspberry Pi. It provides I2C short-frame and UART Modbus RTU transports, starts and stops measurement, reads PM1.0 / PM2.5 / PM10 data, and configures measurement parameters through the module firmware.
 
 - Supports continuous and duty-cycle measurement modes
-- Reads PM data and state flags through `sData_t`
+- Reads PM data and state flags through `DFRobot_BMV080_Gravity_Data`
 - Configures integration time, duty-cycle period, algorithm, obstruction detection and vibration filtering
 - Configures UART baud rate, parity and stop bits saved in module NVS
 - Duty-cycle measurement starts with `FAST_RESPONSE` as required by the BMV080 SDK
@@ -40,7 +44,7 @@ Install the required packages on Raspberry Pi:
 
 ```bash
 sudo apt update
-sudo apt install -y i2c-tools python3-serial
+sudo apt install -y i2c-tools python3-serial python3-rpi.gpio
 pip install smbus2
 ```
 
@@ -64,6 +68,8 @@ cd python/raspberrypi/examples
 python continuous_read.py
 ```
 
+Each example defaults to I2C. To use UART Modbus RTU, set `communication_mode = "UART"` in the example and adjust `uart_port`, `uart_addr` and `uart_baud` as needed.
+
 To run the duty-cycle example:
 
 ```bash
@@ -73,10 +79,32 @@ python duty_cycle_read.py
 To configure UART baud rate and frame format:
 
 ```bash
-python set_baud_uart_format.py
+python set_baud.py
+```
+
+To run the interrupt examples:
+
+```bash
+python continuous_interrupt.py
+python duty_cycle_interrupt.py
 ```
 
 ## Methods
+
+`get_data()` returns a `DFRobot_BMV080_Gravity_Data` object only when a new PM sample is ready; otherwise it returns `None`. The returned data fields are:
+
+- `pm1`, `pm2_5`, `pm10`: PM1.0, PM2.5 and PM10 mass concentration in ug/m3
+- `runtime`: Sensor runtime in seconds
+- `run_state`: Current firmware run state, see `RUN_STATE_*` constants
+- `status`: Last BMV080 SDK/firmware status code
+- `is_obstructed`: Obstruction detected
+- `is_outside_measurement_range`: PM value is outside the reliable measurement range
+- `data_ready`: New PM data is available; `get_data()` returns an object only when this flag is set
+- `measuring`: Sensor is currently measuring
+- `params_verified`: Measurement parameters have been applied to the sensor
+- `value_clamped`: Reserved compatibility flag
+- `value_invalid`: Non-finite PM/runtime value was sanitized by firmware
+- `sample_seq`: Sample sequence number, increments for each new measurement
 
 ```python
 
@@ -88,13 +116,13 @@ def begin(self):
     @retval False Initialization failed
   '''
 
-def getData(self):
+def get_data(self):
   '''!
     @brief Read particulate matter measurement data
-    @return sData_t object when new data is available, otherwise None
+    @return DFRobot_BMV080_Gravity_Data object with PM concentration, runtime, run state and flags when new data is available, otherwise None
   '''
 
-def setMeasureMode(self, mode):
+def set_measure_mode(self, mode):
   '''!
     @brief Set measurement mode and start measurement
     @param mode Measurement mode
@@ -108,7 +136,7 @@ def setMeasureMode(self, mode):
     @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
   '''
 
-def stopMeasurement(self):
+def stop_measurement(self):
   '''!
     @brief Stop the current measurement
     @return Stop command execution status
@@ -124,7 +152,7 @@ def reset(self):
     @retval False Reset command failed
   '''
 
-def setIntegrationTime(self, integration_time):
+def set_integration_time(self, integration_time):
   '''!
     @brief Set measurement integration time
     @param integration_time Integration time in seconds
@@ -137,7 +165,7 @@ def setIntegrationTime(self, integration_time):
     @note When increasing integration time beyond the current period margin, set duty-cycle period first.
   '''
 
-def setDutyCyclingPeriod(self, duty_cycling_period):
+def set_duty_cycling_period(self, duty_cycling_period):
   '''!
     @brief Set duty-cycle measurement period
     @param duty_cycling_period Duty-cycle measurement period in seconds
@@ -150,21 +178,21 @@ def setDutyCyclingPeriod(self, duty_cycling_period):
     @note When shortening duty-cycle period, lower integration time first if needed.
   '''
 
-def getIntegrationTime(self):
+def get_integration_time(self):
   '''!
     @brief Read measurement integration time
     @return Integration time in seconds
     @retval math.nan Read failed
   '''
 
-def getDutyCyclingPeriod(self):
+def get_duty_cycling_period(self):
   '''!
     @brief Read duty-cycle measurement period
     @return Duty-cycle measurement period in seconds
     @retval 0 Read failed
   '''
 
-def setObstructionDetection(self, enable):
+def set_obstruction_detection(self, enable):
   '''!
     @brief Enable or disable obstruction detection
     @param enable Obstruction detection switch
@@ -175,7 +203,7 @@ def setObstructionDetection(self, enable):
     @retval False Setting failed
   '''
 
-def getObstructionDetection(self):
+def get_obstruction_detection(self):
   '''!
     @brief Read obstruction detection switch state
     @return Obstruction detection switch state
@@ -184,7 +212,7 @@ def getObstructionDetection(self):
     @retval -1 Read failed
   '''
 
-def setVibrationFiltering(self, enable):
+def set_vibration_filtering(self, enable):
   '''!
     @brief Enable or disable vibration filtering
     @param enable Vibration filtering switch
@@ -195,7 +223,7 @@ def setVibrationFiltering(self, enable):
     @retval False Setting failed
   '''
 
-def getVibrationFiltering(self):
+def get_vibration_filtering(self):
   '''!
     @brief Read vibration filtering switch state
     @return Vibration filtering switch state
@@ -204,7 +232,7 @@ def getVibrationFiltering(self):
     @retval -1 Read failed
   '''
 
-def setMeasurementAlgorithm(self, measurement_algorithm):
+def set_measurement_algorithm(self, measurement_algorithm):
   '''!
     @brief Set measurement algorithm
     @param measurement_algorithm Measurement algorithm
@@ -219,7 +247,7 @@ def setMeasurementAlgorithm(self, measurement_algorithm):
     @note When duty-cycle measurement is started, the firmware forces FAST_RESPONSE as required by the BMV080 SDK.
   '''
 
-def getMeasurementAlgorithm(self):
+def get_measurement_algorithm(self):
   '''!
     @brief Read measurement algorithm
     @return Current measurement algorithm
@@ -229,11 +257,11 @@ def getMeasurementAlgorithm(self):
     @retval 0 Read failed or register value is invalid
   '''
 
-def setBaud(self, baud):
+def set_baud(self, baud):
   '''!
     @brief Save UART baud-rate setting to firmware NVS
     @param baud Baud-rate enum value
-    @n          e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200
+    @n          BAUD_2400, BAUD_4800, BAUD_9600, BAUD_14400, BAUD_19200, BAUD_38400, BAUD_57600, BAUD_115200
     @return Setting status
     @retval 0 Setting succeeded
     @retval 1 Invalid parameter, communication error or firmware returned an error
@@ -241,7 +269,7 @@ def setBaud(self, baud):
     @note The new baud rate takes effect after module restart.
   '''
 
-def getBaud(self):
+def get_baud(self):
   '''!
     @brief Read UART baud rate
     @return Current baud rate in bps
@@ -249,17 +277,17 @@ def getBaud(self):
     @note Invalid register values are parsed as the default 9600 bps.
   '''
 
-def setUartFormat(self, parity, stop_bit=eStopBit1):
+def set_uart_format(self, parity, stop_bit=STOP_BIT_1):
   '''!
     @brief Save UART parity and stop-bit setting to firmware NVS
     @param parity Parity configuration
-    @n            eParityNone: No parity
-    @n            eParityEven: Even parity
-    @n            eParityOdd: Odd parity
+    @n            PARITY_NONE: No parity
+    @n            PARITY_EVEN: Even parity
+    @n            PARITY_ODD: Odd parity
     @param stop_bit Stop-bit configuration
-    @n              eStopBit1: 1 stop bit
-    @n              eStopBit1_5: 1.5 stop bits
-    @n              eStopBit2: 2 stop bits
+    @n              STOP_BIT_1: 1 stop bit
+    @n              STOP_BIT_1_5: 1.5 stop bits
+    @n              STOP_BIT_2: 2 stop bits
     @return Setting status
     @retval 0 Setting succeeded
     @retval 1 Invalid parameter, communication error or firmware returned an error
@@ -267,7 +295,7 @@ def setUartFormat(self, parity, stop_bit=eStopBit1):
     @note The new UART frame format takes effect after module restart.
   '''
 
-def getUartFormat(self):
+def get_uart_format(self):
   '''!
     @brief Read UART parity and stop-bit register value
     @return UART frame-format register value
@@ -275,13 +303,13 @@ def getUartFormat(self):
     @note The high byte is parity and the low byte is stop bits.
   '''
 
-def setTimeoutTimeMs(self, timeout_ms):
+def set_timeout_time_ms(self, timeout_ms):
   '''!
     @brief Set I2C communication timeout
     @param timeout_ms Timeout in milliseconds
   '''
 
-def setTimeoutTimeS(self, timeout_s):
+def set_timeout_time_s(self, timeout_s):
   '''!
     @brief Set UART Modbus RTU timeout
     @param timeout_s Timeout in seconds

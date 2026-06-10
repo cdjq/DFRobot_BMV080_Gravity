@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''!
-@file  continuous_read.py
-@brief  Read PM data in continuous mode from DFRobot BMV080 Gravity firmware.
+@file  set_baud.py
+@brief  Save UART baud/parity/stop-bit configuration in module NVS.
 @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
 @license     The MIT License (MIT)
 @author      DFRobot
@@ -62,44 +62,33 @@ sensor = create_sensor()
 
 def setup():
   '''!
-  @brief Initialize the module and start continuous measurement
+  @brief Save UART baud-rate and frame-format settings to module NVS
   '''
   while not sensor.begin():
     print("Sensor init failed.")
     time.sleep(1)
   print("BMV080 Gravity init succeeded.")
 
-  if sensor.set_measure_mode(sensor.CONTINUOUS_MODE) == 0:
-    print("Continuous measurement started.")
+  if sensor.set_baud(sensor.BAUD_115200) == 0:
+    print("Baud register saved as 115200.")
   else:
-    print("Start measurement failed.")
+    print("Set baud failed.")
 
+  if sensor.set_uart_format(sensor.PARITY_NONE, sensor.STOP_BIT_1) == 0:
+    print("UART format saved (8-N-1).")
+  else:
+    print("Set UART format failed.")
 
-def loop():
-  '''!
-  @brief Read and print PM data when a new sample is available
-  '''
-  # get_data() returns None until the firmware reports a new sample.
-  # Returned data fields include:
-  #   pm1 / pm2_5 / pm10: PM1.0, PM2.5 and PM10 mass concentration (ug/m3)
-  #   runtime: sensor runtime in seconds
-  #   run_state / status: firmware run state and status code
-  #   is_obstructed / is_outside_measurement_range: warning flags
-  #   measuring / params_verified: current measurement state flags
-  #   sample_seq: sample sequence number
-  data = sensor.get_data()
-  if data is not None:
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    msg = "[%s] PM1.0: %.1f ug/m3  PM2.5: %.1f ug/m3  PM10: %.1f ug/m3" % (timestamp, data.pm1, data.pm2_5, data.pm10)
-    if data.is_obstructed:
-      msg += "  Obstructed"
-    if data.is_outside_measurement_range:
-      msg += "  OutsideRange"
-    print(msg)
-  time.sleep(0.1)
+  print("Baud: %d bps" % sensor.get_baud())
+
+  fmt_reg = sensor.get_uart_format()
+  parity = (fmt_reg >> 8) & 0xFF
+  stop = fmt_reg & 0xFF
+  print("UART Format Register: 0x%04X" % fmt_reg)
+  print("Parity Field:", parity)
+  print("Stop Bit Field:", stop)
+  print("Restart module in UART mode to apply new UART settings.")
 
 
 if __name__ == "__main__":
   setup()
-  while True:
-    loop()

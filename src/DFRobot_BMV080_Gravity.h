@@ -1,8 +1,8 @@
 /**
  * @file  DFRobot_BMV080_Gravity.h
  * @brief  Define the infrastructure of DFRobot_BMV080_Gravity class
- * @n      The Gravity version talks to the ESP32 BMV080 firmware through I2C slave short frames or Modbus RTU.
- * @n      The BMV080 handle is managed inside the ESP32 firmware, so this library only exposes start, stop and parameter control.
+ * @n      The Gravity version talks to the firmware through I2C slave short frames or Modbus RTU.
+ * @n      The BMV080 handle is managed inside the firmware, so this library only exposes start, stop and parameter control.
  * @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
  * @license     The MIT License (MIT)
  * @author      DFRobot
@@ -18,6 +18,7 @@
 #include <Wire.h>
 #include <math.h>
 #include <stdint.h>
+
 #include "DFRobot_RTU.h"
 
 // Open this macro to see the detailed running process of the program.
@@ -56,7 +57,7 @@ public:
 
   /**
    * @enum eMeasureMode_t
-   * @brief BMV080 measurement mode cached in the ESP32 firmware.
+   * @brief BMV080 measurement mode cached in the firmware.
    */
   typedef enum {
     eContinuousMode = 0,    ///< Continuous measurement mode
@@ -101,7 +102,7 @@ public:
   /**
    * @enum eStopBit_t
    * @brief UART stop-bit field stored in the low byte of holding register 0x0002.
-   * @note ESP32 firmware rejects 0.5 stop bit, so only 1, 1.5 and 2 stop bits are exposed.
+   * @note firmware rejects 0.5 stop bit, so only 1, 1.5 and 2 stop bits are exposed.
    */
   typedef enum {
     eStopBit1   = 0x01,    ///< 1 stop bit
@@ -124,7 +125,11 @@ public:
 
   /**
    * @struct sData_t
-   * @brief PM data and state flags cached by the ESP32 firmware.
+   * @brief PM data and state flags cached by the firmware.
+   * @details getData() fills this structure when a new sample is ready.
+   *          PM1, PM2_5 and PM10 are mass concentrations in ug/m3.
+   *          runtime, runState and status describe the firmware/sensor state.
+   *          The boolean fields are decoded state flags from the firmware.
    */
   typedef struct {
     float    PM1;                          ///< PM1.0 concentration (ug/m3)
@@ -169,7 +174,19 @@ public:
    * @fn getData
    * @brief Read particulate matter measurement data.
    * @details The function returns true only when the firmware reports new valid data.
-   * @param data Pointer to the data structure used to store PM1.0, PM2.5, PM10 and state flags.
+   * @param data Pointer to sData_t used to store:
+   * @n     PM1, PM2_5, PM10: PM1.0/PM2.5/PM10 mass concentration in ug/m3.
+   * @n     runtime: Sensor runtime in seconds.
+   * @n     runState: Current run state, see eRunState_t.
+   * @n     status: Last BMV080 SDK/firmware status code.
+   * @n     isObstructed: Obstruction detected.
+   * @n     isOutsideMeasurementRange: PM value is outside the reliable measurement range.
+   * @n     dataReady: New PM data is available.
+   * @n     measuring: Sensor is currently measuring.
+   * @n     paramsVerified: Measurement parameters have been applied to the sensor.
+   * @n     valueClamped: Reserved compatibility flag.
+   * @n     valueInvalid: Non-finite PM/runtime value was sanitized by firmware.
+   * @n     sampleSeq: Sample sequence number, increments for each new measurement.
    * @return Whether new valid data was read.
    * @retval true New data was read.
    * @retval false No new data is available, or the read failed.
@@ -506,33 +523,31 @@ private:
 
   sData_t _data;
 
-  enum {
-    EXPECTED_PID             = 0x0296,
-    EXPECTED_VID             = 0x3343,
-    EXPECTED_REG_MAP_VERSION = 0x0004,
+  static const uint16_t EXPECTED_PID             = 0x0296U;
+  static const uint16_t EXPECTED_VID             = 0x3343U;
+  static const uint16_t EXPECTED_REG_MAP_VERSION = 0x0004U;
 
-    REG_INPUT_PID       = 0x0000,    ///< Input: Product ID
-    REG_INPUT_RUN_STATE = 0x0004,    ///< Input: Run state
+  static const uint16_t REG_INPUT_PID       = 0x0000U;    ///< Input: Product ID
+  static const uint16_t REG_INPUT_RUN_STATE = 0x0004U;    ///< Input: Run state
 
-    REG_HOLDING_BAUDRATE           = 0x0001,    ///< Holding: Baud rate enum
-    REG_HOLDING_VERIFY_STOP        = 0x0002,    ///< Holding: Parity/stop bits
-    REG_HOLDING_ACTION             = 0x0003,    ///< Holding: Action command
-    REG_HOLDING_MEASURE_MODE       = 0x0004,    ///< Holding: Measurement mode
-    REG_HOLDING_ALGORITHM          = 0x0005,    ///< Holding: Algorithm selection
-    REG_HOLDING_OBSTRUCTION        = 0x0006,    ///< Holding: Obstruction detection
-    REG_HOLDING_VIBRATION          = 0x0007,    ///< Holding: Vibration filtering
-    REG_HOLDING_INTEGRATION_F32_HI = 0x0008,    ///< Holding: Integration time float32 high word
-    REG_HOLDING_INTEGRATION_F32_LO = 0x0009,    ///< Holding: Integration time float32 low word
-    REG_HOLDING_DUTY_PERIOD_S      = 0x000A,    ///< Holding: Duty cycle period
+  static const uint16_t REG_HOLDING_BAUDRATE           = 0x0001U;    ///< Holding: Baud rate enum
+  static const uint16_t REG_HOLDING_VERIFY_STOP        = 0x0002U;    ///< Holding: Parity/stop bits
+  static const uint16_t REG_HOLDING_ACTION             = 0x0003U;    ///< Holding: Action command
+  static const uint16_t REG_HOLDING_MEASURE_MODE       = 0x0004U;    ///< Holding: Measurement mode
+  static const uint16_t REG_HOLDING_ALGORITHM          = 0x0005U;    ///< Holding: Algorithm selection
+  static const uint16_t REG_HOLDING_OBSTRUCTION        = 0x0006U;    ///< Holding: Obstruction detection
+  static const uint16_t REG_HOLDING_VIBRATION          = 0x0007U;    ///< Holding: Vibration filtering
+  static const uint16_t REG_HOLDING_INTEGRATION_F32_HI = 0x0008U;    ///< Holding: Integration time float32 high word
+  static const uint16_t REG_HOLDING_INTEGRATION_F32_LO = 0x0009U;    ///< Holding: Integration time float32 low word
+  static const uint16_t REG_HOLDING_DUTY_PERIOD_S      = 0x000AU;    ///< Holding: Duty cycle period
 
-    INPUT_FLAG_OBSTRUCTED      = 1U << 0,    ///< Obstruction detected
-    INPUT_FLAG_OUTSIDE_RANGE   = 1U << 1,    ///< Outside measurement range
-    INPUT_FLAG_DATA_READY      = 1U << 2,    ///< New PM data ready
-    INPUT_FLAG_MEASURING       = 1U << 4,    ///< Sensor measuring
-    INPUT_FLAG_PARAMS_VERIFIED = 1U << 6,    ///< Parameters verified on sensor
-    INPUT_FLAG_VALUE_CLAMPED   = 1U << 8,    ///< PM/runtime value clamped to valid register range
-    INPUT_FLAG_VALUE_INVALID   = 1U << 9,    ///< Non-finite PM/runtime input detected and sanitized
-  };
+  static const uint16_t INPUT_FLAG_OBSTRUCTED      = 0x0001U;    ///< Obstruction detected
+  static const uint16_t INPUT_FLAG_OUTSIDE_RANGE   = 0x0002U;    ///< Outside measurement range
+  static const uint16_t INPUT_FLAG_DATA_READY      = 0x0004U;    ///< New PM data ready
+  static const uint16_t INPUT_FLAG_MEASURING       = 0x0010U;    ///< Sensor measuring
+  static const uint16_t INPUT_FLAG_PARAMS_VERIFIED = 0x0040U;    ///< Parameters verified on sensor
+  static const uint16_t INPUT_FLAG_VALUE_CLAMPED   = 0x0100U;    ///< PM/runtime value clamped to valid register range
+  static const uint16_t INPUT_FLAG_VALUE_INVALID   = 0x0200U;    ///< Non-finite PM/runtime input detected and sanitized
 };
 
 class DFRobot_BMV080_Gravity_I2C : public DFRobot_BMV080_Gravity {
@@ -763,13 +778,14 @@ protected:
 private:
 #if defined(ARDUINO_AVR_UNO) || defined(ESP8266)
   SoftwareSerial *_serial;
+
 #else
   HardwareSerial *_serial;
+  uint8_t         _rxpin;
+  uint8_t         _txpin;
 #endif
   uint32_t _baud;
   uint8_t  _addr;
-  uint8_t  _rxpin;
-  uint8_t  _txpin;
 };
 
 #endif

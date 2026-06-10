@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 '''!
-@file  duty_cycle_read.py
-@brief  Configure parameters and read PM data in duty-cycle mode.
-@details  Duty-cycle measurement starts with FAST_RESPONSE as required by the BMV080 SDK.
+@file  duty_cycle_interrupt.py
+@brief  Read PM data in duty-cycle mode with external interrupt.
+@details  Connect the BMV080 Gravity INT pin to the Raspberry Pi GPIO configured by irq_pin.
+@n        The example uses BCM GPIO numbering and watches a falling edge.
+@n        In duty-cycle mode, INT reports the end of a measurement cycle.
+@n        The callback only sets a flag; do not read I2C/UART or print from the callback.
 @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
 @license     The MIT License (MIT)
 @author      DFRobot
@@ -14,6 +17,13 @@
 import os
 import sys
 import time
+
+_gpio_import_error = None
+try:
+  import RPi.GPIO as GPIO  # type: ignore
+except ImportError as exc:
+  GPIO = None  # type: ignore
+  _gpio_import_error = exc
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from DFRobot_BMV080_Gravity import (
@@ -45,8 +55,14 @@ uart_bits = 8
 uart_parity = "N"
 uart_stopbit = 1
 
+# Raspberry Pi BCM GPIO number. GPIO17 is physical pin 11.
+# Change this if GPIO17 is already used by another board function.
+irq_pin = 17
+
 duty_cycle_period = 30
 integration_time = 10.0
+
+data_flag = False
 
 
 def create_sensor():
@@ -64,10 +80,38 @@ def create_sensor():
 sensor = create_sensor()
 
 
+def on_interrupt(channel):
+  '''!
+  @brief GPIO interrupt callback
+  '''
+  del channel
+  global data_flag
+  data_flag = True
+
+
+def print_data(data):
+  '''!
+  @brief Print PM data and status flags
+  @details data fields include pm1/pm2_5/pm10 mass concentration (ug/m3),
+           runtime, run_state/status, warning flags, measuring/params_verified,
+           and sample_seq.
+  '''
+  timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+  msg = "[%s] PM1.0: %.1f ug/m3  PM2.5: %.1f ug/m3  PM10: %.1f ug/m3" % (timestamp, data.pm1, data.pm2_5, data.pm10)
+  if data.is_obstructed:
+    msg += "  Obstructed"
+  if data.is_outside_measurement_range:
+    msg += "  OutsideRange"
+  print(msg)
+
+
 def setup():
   '''!
-  @brief Configure duty-cycle parameters and start duty-cycle measurement
+  @brief Configure duty-cycle measurement and enable GPIO interrupt
   '''
+  if GPIO is None:
+    raise ImportError("RPi.GPIO is required for interrupt examples. Install with `sudo apt install python3-rpi.gpio`.") from _gpio_import_error
+
   while not sensor.begin():
     print("Sensor init failed.")
     time.sleep(1)
@@ -109,32 +153,44 @@ def setup():
   else:
     print("Start measurement failed.")
 
+  GPIO.setmode(GPIO.BCM)
+  GPIO.setup(irq_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+  # FALLING matches the module firmware's INT event pulse used by this demo.
+  # The callback only sets data_flag; the main loop performs the sensor read.
+  GPIO.add_event_detect(irq_pin, GPIO.FALLING, callback=on_interrupt, bouncetime=5)
+  print("Interrupt enabled on BCM GPIO %d." % irq_pin)
+
 
 def loop():
   '''!
-  @brief Read and print PM data when a new sample is available
+  @brief Read and print PM data when the INT pin reports an event
   '''
-  # get_data() returns None until the firmware reports a new duty-cycle sample.
-  # Returned data fields include:
-  #   pm1 / pm2_5 / pm10: PM1.0, PM2.5 and PM10 mass concentration (ug/m3)
-  #   runtime: sensor runtime in seconds
-  #   run_state / status: firmware run state and status code
-  #   is_obstructed / is_outside_measurement_range: warning flags
-  #   measuring / params_verified: current measurement state flags
-  #   sample_seq: sample sequence number
-  data = sensor.get_data()
-  if data is not None:
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    msg = "[%s] PM1.0: %.1f ug/m3  PM2.5: %.1f ug/m3  PM10: %.1f ug/m3" % (timestamp, data.pm1, data.pm2_5, data.pm10)
-    if data.is_obstructed:
-      msg += "  Obstructed"
-    if data.is_outside_measurement_range:
-      msg += "  OutsideRange"
-    print(msg)
-  time.sleep(0.1)
+  global data_flag
+  if data_flag:
+    data_flag = False
+    # get_data() returns None if this INT event is not a new PM sample yet.
+    data = sensor.get_data()
+    if data is not None:
+      print_data(data)
+  time.sleep(0.01)
+
+
+def cleanup():
+  '''!
+  @brief Release GPIO and communication resources
+  '''
+  if GPIO is not None:
+    GPIO.cleanup()
+  if hasattr(sensor, "close"):
+    sensor.close()
 
 
 if __name__ == "__main__":
-  setup()
-  while True:
-    loop()
+  try:
+    setup()
+    while True:
+      loop()
+  except KeyboardInterrupt:
+    pass
+  finally:
+    cleanup()

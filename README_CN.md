@@ -4,14 +4,16 @@
 
 这是一个 DFRobot BMV080 Gravity 模块的 Arduino 库，用于读取 PM1.0、PM2.5 和 PM10 颗粒物浓度数据。
 
-BMV080 传感器由模块上的 ESP32 固件管理。本库通过以下两种方式与固件的寄存器表通信：
+这款 BMV080 PM2.5 传感器模块设计紧凑、精度高且测量范围广。其核心采用博世最新研发的 BMV080 传感器元件——全球最小的 PM 空气质量传感器，体积比市场上同类产品小 450 多倍。尽管尺寸大幅缩减，但性能丝毫不减。它不仅能精确测量空气中 PM2.5 颗粒的质量浓度，还支持 PM1.0 和 PM10 的检测。
+
+传统的 PM2.5 传感器通常依靠风扇或风道将自由漂浮的颗粒引入检测区域，因此体积较大，并伴有风扇噪音和灰尘堆积问题，这增加了维护成本和故障风险。而 BMV080 采用类似于相机的测量原理，运用激光光学技术，根据自由空间中颗粒的数量和相对速度来计算质量浓度。它巧妙地利用周围自然气流驱动颗粒进入检测区域进行直接测量，无需风扇或强制气流系统，从而消除了维护麻烦，避免了风扇造成的灰尘堆积，显著提高了设备的可靠性。
+
+BMV080 传感器由模块上的 ESP32 固件管理。本库通过以下两种方式与模块固件通信：
 
 - **I2C** — 短寄存器帧（0xA5 前缀），适合本地短距离通信
 - **UART** — 标准 Modbus RTU 协议，适合远距离通信
 
-本库不包含 Bosch BMV080 SDK，也不暴露 `open` 或 `close` API——传感器句柄由 ESP32 固件持有。
-
-## 产品链接(https://www.dfrobot.com)
+## 产品链接（[https://www.dfrobot.com.cn](https://www.dfrobot.com.cn)）
     SKU: SEN0662
 
 ## 目录
@@ -50,6 +52,21 @@ git clone https://github.com/DFRobot/DFRobot_BMV080_Gravity.git
 
 ## 方法
 
+`getData()` 仅在有新的 PM 数据时填充 `sData_t`。`data` 中包含以下字段：
+
+- `PM1`、`PM2_5`、`PM10`：PM1.0、PM2.5、PM10 质量浓度，单位 ug/m3
+- `runtime`：传感器运行时间，单位秒
+- `runState`：当前固件运行状态，参见 `eRunState_t`
+- `status`：最近一次 BMV080 SDK/固件状态码
+- `isObstructed`：检测到遮挡
+- `isOutsideMeasurementRange`：PM 数值超出可靠测量范围
+- `dataReady`：有新的 PM 数据；只有该标志置位时 `getData()` 才返回 `true`
+- `measuring`：传感器当前正在测量
+- `paramsVerified`：测量参数已应用到传感器
+- `valueClamped`：预留兼容标志
+- `valueInvalid`：固件检测到非有限 PM/runtime 值并已做安全处理
+- `sampleSeq`：样本序号，每产生一次新测量结果递增
+
 ```C++
 
 /**
@@ -62,7 +79,7 @@ virtual bool begin(void);
 /**
  * @fn getData
  * @brief 读取 PM 数据。仅在新数据就绪时返回 true。
- * @param data 数据结构指针。成功时填充 PM 数据和状态标志。
+ * @param data 数据结构指针。成功时填充 PM 浓度、运行时间、运行状态和状态标志。
  * @return true 固件 dataReady 标志已置位，false 无新数据或读取失败
  */
 bool getData(sData_t *data);
@@ -216,18 +233,20 @@ UART Modbus RTU 地址不再由本库封装配置。如需修改模块地址，�
 - `continuousInterrupt`: 连续测量 + 外部中断。演示通过 BMV080 INT 引脚触发中断来读取数据。
 - `dutyCycleRead`: 间歇测量和参数配置示例。演示 `setIntegrationTime()`、`setDutyCyclingPeriod()`、算法和滤波设置，以及 `setMeasureMode()`。
 - `dutyCycleInterrupt`: 间歇测量 + 外部中断。演示在周期性测量模式下使用中断驱动的数据采集。
-- `setBaudUartFormat`: UART 波特率、校验位和停止位配置示例。演示 `setBaud()`/`getBaud()`、`setUartFormat()`/`getUartFormat()`。
+- `setBaud`: UART 波特率、校验位和停止位配置示例。演示 `setBaud()`/`getBaud()`、`setUartFormat()`/`getUartFormat()`。
 
 ## 兼容性
 
 | MCU                | 正常 | 异常 | 未测试 | 备注 |
 | ------------------ |:----:|:----:|:------:| ---- |
-| ATmega328          |  √   |      |        |      |
-| ATmega2560         |  √   |      |        |      |
+| Arduino uno        |  √   |      |        |      |
+| Mega2560           |  √   |      |        |      |
+| Leonardo           |  √   |      |        |      |
 | ESP32              |  √   |      |        |      |
-| ESP8266             |      |      |   √    |      |
-| micro:bit          |      |      |   √    |      |
-| Raspberry Pi Pico  |      |      |   √    |      |
+| ESP8266            |  √   |      |        |      |
+| FireBeetle M0      |  √   |      |        |      |
+| micro:bit          |  √   |      |        |      |
+| Raspberry Pi 4B    |  √   |      |        |      |
 
 ## 历史
 

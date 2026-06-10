@@ -1,5 +1,5 @@
 /**
- * @file  setBaudUartFormat.ino
+ * @file  setBaud.ino
  * @brief  Save UART baud rate, parity and stop-bit settings to BMV080 Gravity firmware.
  * @n  This demo configures the UART communication parameters of the module firmware.
  * @n  The settings are stored in ESP32 NVS and take effect after the module restarts in UART Modbus RTU mode.
@@ -11,14 +11,8 @@
  * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
  */
-#include <Wire.h>
-
 #include "DFRobot_BMV080_Gravity.h"
 
-/* >> 1. Please choose your communication method below:
- * I2C mode: set module GPIO4 HIGH before ESP32 firmware boots.
- * UART mode: set module GPIO4 LOW before ESP32 firmware boots.
- */
 // #define BMV080_COMM_UART
 #define BMV080_COMM_I2C
 
@@ -52,6 +46,8 @@ SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
 DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, UART_ADDR);
 #elif defined(ESP32)
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =*/26);
+#elif defined(ARDUINO_BBC_MICROBIT) && !defined(ARDUINO_BBC_MICROBIT_V2)
+#error "BBC micro:bit (nRF51, sandeepmistry/nRF5): Serial1 is not defined. Use I2C in this sketch (#define HUMANPOSE_COMM_I2C) or a board with Serial1."
 #else
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
