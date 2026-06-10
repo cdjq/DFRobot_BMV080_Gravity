@@ -117,6 +117,12 @@ def setup():
   sensor.set_measurement_algorithm(sensor.BALANCED)
   print("Algorithm:", sensor.get_measurement_algorithm())
 
+  sensor.set_obstruction_detection(True)
+  print("Obstruction Detection:", sensor.get_obstruction_detection())
+
+  sensor.set_vibration_filtering(True)
+  print("Vibration Filtering:", sensor.get_vibration_filtering())
+
   if sensor.set_measure_mode(sensor.CONTINUOUS_MODE) == 0:
     print("Continuous measurement started.")
   else:

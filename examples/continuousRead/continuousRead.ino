@@ -79,6 +79,14 @@ void setup()
   Serial.print("Algorithm: ");
   Serial.println(sensor.getMeasurementAlgorithm());
 
+  sensor.setObstructionDetection(true);
+  Serial.print("Obstruction Detection: ");
+  Serial.println(sensor.getObstructionDetection());
+
+  sensor.setVibrationFiltering(true);
+  Serial.print("Vibration Filtering: ");
+  Serial.println(sensor.getVibrationFiltering());
+
   /**
    * Start continuous measurement.
    * setMeasureMode(eContinuousMode) writes action value 1.
