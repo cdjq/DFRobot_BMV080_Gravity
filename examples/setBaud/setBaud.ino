@@ -57,6 +57,34 @@ DFRobot_BMV080_Gravity_I2C sensor(&Wire, I2C_ADDR);
 #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
 #endif
 
+const char *parityToText(uint8_t parity)
+{
+  switch (parity) {
+    case DFRobot_BMV080_Gravity::eParityNone:
+      return "No parity";
+    case DFRobot_BMV080_Gravity::eParityEven:
+      return "Even parity";
+    case DFRobot_BMV080_Gravity::eParityOdd:
+      return "Odd parity";
+    default:
+      return "Unknown";
+  }
+}
+
+const char *stopBitToText(uint8_t stopBit)
+{
+  switch (stopBit) {
+    case DFRobot_BMV080_Gravity::eStopBit1:
+      return "1 stop bit";
+    case DFRobot_BMV080_Gravity::eStopBit1_5:
+      return "1.5 stop bits";
+    case DFRobot_BMV080_Gravity::eStopBit2:
+      return "2 stop bits";
+    default:
+      return "Unknown";
+  }
+}
+
 void setup()
 {
   uint16_t fmtReg = 0;
@@ -99,7 +127,11 @@ void setup()
   /**
    * Read back registers for verification.
    * Use getBaud to read the actual baud rate in bps.
-   * Use getUartFormat to read the combined parity/stop-bit register.
+   * Use getUartFormat to read the combined parity/stop-bit register:
+   *   high byte: parity field
+   *     0 = no parity, 1 = even parity, 2 = odd parity
+   *   low byte: stop-bit field
+   *     1 = 1 stop bit, 2 = 1.5 stop bits, 3 = 2 stop bits
    */
   Serial.print("Baud: ");
   Serial.print(sensor.getBaud());
@@ -112,9 +144,15 @@ void setup()
   Serial.print("UART Format Register: 0x");
   Serial.println(fmtReg, HEX);
   Serial.print("Parity Field: ");
-  Serial.println(parity);
+  Serial.print(parity);
+  Serial.print(" (");
+  Serial.print(parityToText(parity));
+  Serial.println(")");
   Serial.print("Stop Bit Field: ");
-  Serial.println(stop);
+  Serial.print(stop);
+  Serial.print(" (");
+  Serial.print(stopBitToText(stop));
+  Serial.println(")");
 
   Serial.println();
   Serial.println("Restart the module in UART mode to apply the new UART settings.");

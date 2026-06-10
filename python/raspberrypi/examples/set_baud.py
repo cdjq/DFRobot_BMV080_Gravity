@@ -60,6 +60,30 @@ def create_sensor():
 sensor = create_sensor()
 
 
+def parity_to_text(parity):
+  '''!
+  @brief Convert parity field value to readable text
+  '''
+  mapping = {
+    DFRobot_BMV080_Gravity.PARITY_NONE: "No parity",
+    DFRobot_BMV080_Gravity.PARITY_EVEN: "Even parity",
+    DFRobot_BMV080_Gravity.PARITY_ODD: "Odd parity",
+  }
+  return mapping.get(parity, "Unknown")
+
+
+def stop_bit_to_text(stop_bit):
+  '''!
+  @brief Convert stop-bit field value to readable text
+  '''
+  mapping = {
+    DFRobot_BMV080_Gravity.STOP_BIT_1: "1 stop bit",
+    DFRobot_BMV080_Gravity.STOP_BIT_1_5: "1.5 stop bits",
+    DFRobot_BMV080_Gravity.STOP_BIT_2: "2 stop bits",
+  }
+  return mapping.get(stop_bit, "Unknown")
+
+
 def setup():
   '''!
   @brief Save UART baud-rate and frame-format settings to module NVS
@@ -81,12 +105,17 @@ def setup():
 
   print("Baud: %d bps" % sensor.get_baud())
 
+  # get_uart_format() returns a combined parity/stop-bit register:
+  #   high byte: parity field
+  #     0 = no parity, 1 = even parity, 2 = odd parity
+  #   low byte: stop-bit field
+  #     1 = 1 stop bit, 2 = 1.5 stop bits, 3 = 2 stop bits
   fmt_reg = sensor.get_uart_format()
   parity = (fmt_reg >> 8) & 0xFF
   stop = fmt_reg & 0xFF
   print("UART Format Register: 0x%04X" % fmt_reg)
-  print("Parity Field:", parity)
-  print("Stop Bit Field:", stop)
+  print("Parity Field: %d (%s)" % (parity, parity_to_text(parity)))
+  print("Stop Bit Field: %d (%s)" % (stop, stop_bit_to_text(stop)))
   print("Restart module in UART mode to apply new UART settings.")
 
 
