@@ -114,6 +114,9 @@ def setup():
     time.sleep(1)
   print("BMV080 Gravity init succeeded.")
 
+  sensor.set_measurement_algorithm(sensor.BALANCED)
+  print("Algorithm:", sensor.get_measurement_algorithm())
+
   if sensor.set_measure_mode(sensor.CONTINUOUS_MODE) == 0:
     print("Continuous measurement started.")
   else:

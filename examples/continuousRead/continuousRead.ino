@@ -71,6 +71,15 @@ void setup()
   Serial.println("BMV080 Gravity init succeeded.");
 
   /**
+   * Configure measurement algorithm before starting continuous measurement.
+   * Available algorithms:
+   *   eFastResponse, eBalanced, eHighPrecision
+   */
+  sensor.setMeasurementAlgorithm(DFRobot_BMV080_Gravity::eBalanced);
+  Serial.print("Algorithm: ");
+  Serial.println(sensor.getMeasurementAlgorithm());
+
+  /**
    * Start continuous measurement.
    * setMeasureMode(eContinuousMode) writes action value 1.
    * The firmware will keep the sensor measuring continuously.
