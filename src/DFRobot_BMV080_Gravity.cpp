@@ -24,6 +24,7 @@
 #define BMV080_I2C_SHORTFRAME_RETRY         8
 #define BMV080_I2C_SLAVE_SETTLE_MS          30
 #define BMV080_I2C_VALIDATE_RETRY           3
+#define BMV080_UART_RTU_TIMEOUT_MS          150
 
 static void putBE16(uint16_t data, uint8_t *buf)
 {
@@ -614,6 +615,7 @@ bool DFRobot_BMV080_Gravity_UART::begin(void)
 #else
   _serial->begin(_baud);
 #endif
+  DFRobot_RTU::setTimeoutTimeMs(BMV080_UART_RTU_TIMEOUT_MS);
   return DFRobot_BMV080_Gravity::begin();
 }
 

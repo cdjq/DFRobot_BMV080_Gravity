@@ -166,7 +166,7 @@ class DFRobot_BMV080_Gravity(object):
     @retval False Initialization failed
     '''
     for _ in range(8):
-      regs = self.read_input_reg(self._REG_INPUT_PID, 4)
+      regs = self._read_input_reg(self._REG_INPUT_PID, 4)
       if regs is not None:
         pid = regs[0]
         vid = regs[1]
@@ -180,7 +180,7 @@ class DFRobot_BMV080_Gravity(object):
   def _read_data(self) -> Optional[DFRobot_BMV080_Gravity.BMV080Data]:
     regs = None
     for _ in range(3):
-      regs = self.read_input_reg(self._REG_INPUT_RUN_STATE, 12)
+      regs = self._read_input_reg(self._REG_INPUT_RUN_STATE, 12)
       if regs is not None:
         break
       time.sleep(0.003)
@@ -263,7 +263,7 @@ class DFRobot_BMV080_Gravity(object):
     target_state = self.RUN_STATE_MEASURING_DUTY if mode == self.DUTY_CYCLE_MODE else self.RUN_STATE_MEASURING_CONTINUOUS
     start = time.monotonic()
     while (time.monotonic() - start) < 1.0:
-      regs = self.read_input_reg(self._REG_INPUT_RUN_STATE, 2)
+      regs = self._read_input_reg(self._REG_INPUT_RUN_STATE, 2)
       if regs is not None:
         if regs[0] == target_state:
           return self.RET_CODE_OK
@@ -309,12 +309,12 @@ class DFRobot_BMV080_Gravity(object):
     if duty_period == 0 or float(duty_period) < (integration_time + 2.0):
       return -1
     regs = self._float_to_regs(integration_time)
-    ret = self.write_holding_reg(self._REG_HOLDING_INTEGRATION_F32_HI, regs)
+    ret = self._write_holding_reg(self._REG_HOLDING_INTEGRATION_F32_HI, regs)
     return int(ret)
 
   def _get_integration_time(self) -> float:
     for _ in range(3):
-      values = self.read_holding_reg(self._REG_HOLDING_INTEGRATION_F32_HI, 2)
+      values = self._read_holding_reg(self._REG_HOLDING_INTEGRATION_F32_HI, 2)
       if values is not None:
         value = self._regs_to_float(values[0], values[1])
         if math.isfinite(value):
@@ -520,25 +520,25 @@ class DFRobot_BMV080_Gravity(object):
     return mapping.get(baud_reg, 9600)
 
   # Virtual transport methods
-  def write_holding_reg(self, reg: int, data: List[int]) -> int:
+  def _write_holding_reg(self, reg: int, data: List[int]) -> int:
     raise NotImplementedError
 
-  def read_holding_reg(self, reg: int, count: int) -> Optional[List[int]]:
+  def _read_holding_reg(self, reg: int, count: int) -> Optional[List[int]]:
     raise NotImplementedError
 
-  def read_input_reg(self, reg: int, count: int) -> Optional[List[int]]:
+  def _read_input_reg(self, reg: int, count: int) -> Optional[List[int]]:
     raise NotImplementedError
 
   def _read_holding_value(self, reg: int) -> Optional[int]:
     for _ in range(3):
-      data = self.read_holding_reg(reg, 1)
+      data = self._read_holding_reg(reg, 1)
       if data is not None:
         return data[0]
       time.sleep(0.005)
     return None
 
   def _write_holding_value(self, reg: int, value: int) -> int:
-    return self.write_holding_reg(reg, [value & 0xFFFF])
+    return self._write_holding_reg(reg, [value & 0xFFFF])
 
   @staticmethod
   def _float_to_regs(value: float) -> List[int]:
@@ -602,17 +602,17 @@ class DFRobot_BMV080_Gravity_I2C(DFRobot_BMV080_Gravity):
       timeout_ms = 1
     self._timeout_s = timeout_ms / 1000.0
 
-  def write_holding_reg(self, reg: int, data: List[int]) -> int:
+  def _write_holding_reg(self, reg: int, data: List[int]) -> int:
     if data is None or len(data) == 0:
       return self.RET_CODE_ERROR
     if len(data) == 1:
       return self._write_single_reg(reg, data[0])
     return self._write_multi_regs(reg, data)
 
-  def read_holding_reg(self, reg: int, count: int) -> Optional[List[int]]:
+  def _read_holding_reg(self, reg: int, count: int) -> Optional[List[int]]:
     return self._read_regs(self.BMV080_I2C_FUNC_READ_HOLDING, reg, count)
 
-  def read_input_reg(self, reg: int, count: int) -> Optional[List[int]]:
+  def _read_input_reg(self, reg: int, count: int) -> Optional[List[int]]:
     return self._read_regs(self.BMV080_I2C_FUNC_READ_INPUT, reg, count)
 
   def _ensure_bus(self) -> bool:
@@ -808,17 +808,21 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
     port: str = "/dev/ttyAMA0",
   ) -> None:
     self._addr = addr
+    self._port = port
     DFRobot_BMV080_Gravity.__init__(self)
-    DFRobot_RTU.__init__(self, baud, bits, parity, stopbit, port)
+    DFRobot_RTU.__init__(self, baud, bits, parity, stopbit)
 
-  def set_timeout_time_s(self, timeout_s: float) -> None:
+  def _set_timeout_time_s(self, timeout_s: float) -> None:
     '''!
     @brief Set UART Modbus RTU timeout
     @param timeout_s Timeout in seconds
     '''
-    DFRobot_RTU.set_timeout_time_s(self, timeout_s)
+    if hasattr(DFRobot_RTU, "set_timeout_time_s"):
+      DFRobot_RTU.set_timeout_time_s(self, timeout_s)
+    else:
+      DFRobot_RTU.set_timout_time_s(self, timeout_s)
 
-  def write_holding_reg(self, reg: int, data: List[int]) -> int:
+  def _write_holding_reg(self, reg: int, data: List[int]) -> int:
     if data is None or len(data) == 0:
       return self.RET_CODE_ERROR
 
@@ -836,10 +840,10 @@ class DFRobot_BMV080_Gravity_UART(DFRobot_BMV080_Gravity, DFRobot_RTU):
 
     return int(ret)
 
-  def read_holding_reg(self, reg: int, count: int) -> Optional[List[int]]:
+  def _read_holding_reg(self, reg: int, count: int) -> Optional[List[int]]:
     return self._read_registers_by_rtu(is_input=False, reg=reg, count=count)
 
-  def read_input_reg(self, reg: int, count: int) -> Optional[List[int]]:
+  def _read_input_reg(self, reg: int, count: int) -> Optional[List[int]]:
     return self._read_registers_by_rtu(is_input=True, reg=reg, count=count)
 
   def _read_registers_by_rtu(self, is_input: bool, reg: int, count: int) -> Optional[List[int]]:

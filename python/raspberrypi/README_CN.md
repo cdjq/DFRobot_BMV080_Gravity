@@ -68,7 +68,7 @@ cd python/raspberrypi/examples
 python continuous_read.py
 ```
 
-各示例默认使用 I2C。如需使用 UART Modbus RTU，请在示例中将 `communication_mode` 改为 `"UART"`，并按需要调整 `uart_port`、`uart_addr` 和 `uart_baud`。
+各示例默认使用 I2C。如需使用 UART Modbus RTU，请在示例中将 `communication_mode` 改为 `"UART"`，并按需要调整 `uart_addr` 和 `uart_baud`。外部 `DFRobot_RTU.py` 库默认打开 `/dev/ttyAMA0`。
 
 运行 duty-cycle 测量示例：
 
@@ -301,18 +301,6 @@ def get_uart_format(self):
     @return UART 帧格式寄存器值
     @retval 0 读取失败
     @note 高字节为校验位，低字节为停止位。
-  '''
-
-def set_timeout_time_ms(self, timeout_ms):
-  '''!
-    @brief 设置 I2C 通信超时时间
-    @param timeout_ms 超时时间，单位为毫秒
-  '''
-
-def set_timeout_time_s(self, timeout_s):
-  '''!
-    @brief 设置 UART Modbus RTU 超时时间
-    @param timeout_s 超时时间，单位为秒
   '''
 ```
 

@@ -48,7 +48,6 @@ communication_mode = "I2C"  # "I2C" or "UART"
 i2c_bus = 1
 i2c_addr = DFRobot_BMV080_Gravity.DEFAULT_I2C_ADDR
 
-uart_port = "/dev/ttyAMA0"
 uart_addr = DFRobot_BMV080_Gravity.DEFAULT_RTU_ADDR
 uart_baud = 9600
 uart_bits = 8
@@ -70,7 +69,7 @@ def create_sensor():
   if mode == "I2C":
     return DFRobot_BMV080_Gravity_I2C(i2c_bus, i2c_addr)
   if mode == "UART":
-    return DFRobot_BMV080_Gravity_UART(uart_baud, uart_addr, uart_bits, uart_parity, uart_stopbit, uart_port)
+    return DFRobot_BMV080_Gravity_UART(uart_baud, uart_addr, uart_bits, uart_parity, uart_stopbit)
   raise ValueError("communication_mode must be 'I2C' or 'UART'.")
 
 

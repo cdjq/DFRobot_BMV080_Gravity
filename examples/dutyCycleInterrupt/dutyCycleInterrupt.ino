@@ -71,8 +71,8 @@ SoftwareSerial              mySerial(/*rx =*/4, /*tx =*/5);
 DFRobot_BMV080_Gravity_UART sensor(&mySerial, 9600, UART_ADDR);
 #elif defined(ESP32)
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =*/26);
-#elif defined(ARDUINO_BBC_MICROBIT) && !defined(ARDUINO_BBC_MICROBIT_V2)
-#error "BBC micro:bit (nRF51, sandeepmistry/nRF5): Serial1 is not defined. Use I2C in this sketch (#define HUMANPOSE_COMM_I2C) or a board with Serial1."
+#elif defined(ARDUINO_BBC_MICROBIT) || defined(ARDUINO_BBC_MICROBIT_V2)
+#error "BBC micro:bit (nRF51, sandeepmistry/nRF5): Serial1 is not defined. Use I2C in this sketch (#define BMV080_COMM_I2C) or a board with Serial1."
 #else
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
@@ -84,6 +84,7 @@ DFRobot_BMV080_Gravity_I2C sensor(&Wire, I2C_ADDR);
 
 void setup()
 {
+  delay(2000);
   Serial.begin(115200);
   while (!Serial) {
     delay(100);

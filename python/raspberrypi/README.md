@@ -68,7 +68,7 @@ cd python/raspberrypi/examples
 python continuous_read.py
 ```
 
-Each example defaults to I2C. To use UART Modbus RTU, set `communication_mode = "UART"` in the example and adjust `uart_port`, `uart_addr` and `uart_baud` as needed.
+Each example defaults to I2C. To use UART Modbus RTU, set `communication_mode = "UART"` in the example and adjust `uart_addr` and `uart_baud` as needed. The external `DFRobot_RTU.py` library opens `/dev/ttyAMA0` by default.
 
 To run the duty-cycle example:
 
@@ -301,18 +301,6 @@ def get_uart_format(self):
     @return UART frame-format register value
     @retval 0 Read failed
     @note The high byte is parity and the low byte is stop bits.
-  '''
-
-def set_timeout_time_ms(self, timeout_ms):
-  '''!
-    @brief Set I2C communication timeout
-    @param timeout_ms Timeout in milliseconds
-  '''
-
-def set_timeout_time_s(self, timeout_s):
-  '''!
-    @brief Set UART Modbus RTU timeout
-    @param timeout_s Timeout in seconds
   '''
 ```
 
