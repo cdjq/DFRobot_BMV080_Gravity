@@ -224,7 +224,13 @@ public:
   /**
    * @fn reset
    * @brief Reset the sensor and restore default configuration.
-   * @details Write the reset command to the action register.
+   * @details Write the reset command to the action register. The firmware stops measurement, resets the BMV080,
+   *          restores the default holding registers, then saves those defaults.
+   * @n     Default UART RTU address: 0x57.
+   * @n     Default UART settings: 9600 bps, 8-N-1.
+   * @n     Default measurement settings: eContinuousMode, eBalanced, obstruction detection enabled,
+   *        vibration filtering enabled, integration time 10.0 s, duty-cycle period 30 s.
+   * @note If UART communication settings were changed before reset, reconnect with the restored defaults after reset or module restart as needed.
    * @return Reset command execution status.
    * @retval true Reset command succeeded.
    * @retval false Reset command failed.

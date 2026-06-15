@@ -58,7 +58,7 @@ DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
  * |     1     |     1     |   0x57     |
  * --------------------------------------
  */
-const uint8_t I2C_ADDR  = 0x57;
+const uint8_t              I2C_ADDR = 0x57;
 DFRobot_BMV080_Gravity_I2C sensor(&Wire, I2C_ADDR);
 #else
 #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."

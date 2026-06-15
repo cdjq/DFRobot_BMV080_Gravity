@@ -106,6 +106,11 @@ bool stopMeasurement(void);
 /**
  * @fn reset
  * @brief 复位 BMV080 并恢复默认配置（action 值 3）
+ * @details 固件会停止当前测量、复位 BMV080、恢复默认保持寄存器，并保存这些默认值。
+ * @note 默认 UART RTU 地址：0x57；默认 UART 参数：9600 bps，8-N-1。
+ *       默认测量参数：eContinuousMode、eBalanced、遮挡检测开启、振动滤波开启、
+ *       integrationTime 10.0 秒、dutyCyclingPeriod 30 秒。
+ *       如果 reset 前修改过 UART 通信参数，reset 后或模块重启后需按恢复后的默认参数重新连接。
  * @return true 固件接受了该操作
  */
 bool reset(void);
