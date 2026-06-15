@@ -13,6 +13,8 @@ BMV080 传感器由模块上的 ESP32 固件管理。本库通过以下两种方
 - **I2C** — 短寄存器帧（0xA5 前缀），适合本地短距离通信
 - **UART** — 标准 Modbus RTU 协议，适合远距离通信
 
+本库不包含 Bosch BMV080 SDK，也不暴露 `open` 或 `close` API；BMV080 传感器句柄由 ESP32 固件持有。
+
 ## 产品链接（[https://www.dfrobot.com.cn](https://www.dfrobot.com.cn)）
     SKU: SEN0662
 

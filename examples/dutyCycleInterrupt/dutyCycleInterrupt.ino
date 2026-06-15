@@ -9,7 +9,7 @@
  * @n  The main loop still checks getData(), which returns true only when a new PM sample is ready.
  * @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
  * @license     The MIT License (MIT)
- * @author      DFRobot
+ * @author      [thdyyl](yuanlong.yu@dfrobot.com)
  * @version     V1.0.0
  * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
@@ -19,22 +19,6 @@
 /* >> 1. Please choose your communication method below: */
 // #define BMV080_COMM_UART
 #define BMV080_COMM_I2C
-
-/**
- * I2C_ADDR is selected by A0/A1 pins.
- * UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
- * use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
- * --------------------------------------
- * |    A0     |    A1     |  Address   |
- * --------------------------------------
- * |     0     |     0     |   0x54     |
- * |     0     |     1     |   0x55     |
- * |     1     |     0     |   0x56     |
- * |     1     |     1     |   0x57     |
- * --------------------------------------
- */
-const uint8_t I2C_ADDR  = 0x57;
-const uint8_t UART_ADDR = 0x57;
 
 /**
  * Duty-cycle timing parameters.
@@ -47,6 +31,9 @@ const uint8_t UART_ADDR = 0x57;
 volatile uint8_t dataFlag = 0;
 
 #if defined(ESP8266)
+#ifndef IRAM_ATTR
+#define IRAM_ATTR ICACHE_RAM_ATTR
+#endif
 void IRAM_ATTR onInterrupt(void)
 #else
 void onInterrupt(void)
@@ -58,6 +45,7 @@ void onInterrupt(void)
 }
 
 #if defined(BMV080_COMM_UART)
+const uint8_t UART_ADDR = 0x57;
 /* ---------------------------------------------------------------------------------------------------------------------
  *    board   |             MCU                | Leonardo/Mega2560/M0 |    UNO    | ESP8266 | ESP32 |  microbit  |   m0  |
  *     VCC    |            3.3V/5V             |        VCC           |    VCC    |   VCC   |  VCC  |     X      |  vcc  |
@@ -77,6 +65,20 @@ DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR, /*rx =*/25, /*tx =
 DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #endif
 #elif defined(BMV080_COMM_I2C)
+/**
+ * I2C_ADDR is selected by A0/A1 pins.
+ * UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
+ * use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
+ * --------------------------------------
+ * |    A0     |    A1     |  Address   |
+ * --------------------------------------
+ * |     0     |     0     |   0x54     |
+ * |     0     |     1     |   0x55     |
+ * |     1     |     0     |   0x56     |
+ * |     1     |     1     |   0x57     |
+ * --------------------------------------
+ */
+const uint8_t I2C_ADDR  = 0x57;
 DFRobot_BMV080_Gravity_I2C sensor(&Wire, I2C_ADDR);
 #else
 #error "Please select BMV080_COMM_I2C or BMV080_COMM_UART."
@@ -213,12 +215,12 @@ void loop()
   DFRobot_BMV080_Gravity::sData_t data;
 
   if (dataFlag == 1) {
-    dataFlag = 0;
     /**
      * getData fills data with PM concentrations, runtime, runState/status,
      * warning flags such as isObstructed/isOutsideMeasurementRange, and sampleSeq.
      */
     if (sensor.getData(&data)) {
+      dataFlag = 0;
       Serial.print("PM1.0: ");
       Serial.print(data.PM1);
       Serial.print(" ug/m3  PM2.5: ");

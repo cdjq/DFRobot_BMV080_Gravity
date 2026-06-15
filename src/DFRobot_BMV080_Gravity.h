@@ -5,7 +5,7 @@
  * @n      The BMV080 handle is managed inside the firmware, so this library only exposes start, stop and parameter control.
  * @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
  * @license     The MIT License (MIT)
- * @author      DFRobot
+ * @author      [thdyyl](yuanlong.yu@dfrobot.com)
  * @version     V1.0.0
  * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
@@ -205,7 +205,8 @@ public:
    * @retval -1 Invalid parameter.
    * @retval 1 Communication error or firmware returned an error.
    * @retval 2 Data read error or start-state timeout.
-   * @retval 3 Firmware version or device information error.
+   * @note If the firmware enters eRunStateError, this function returns the firmware status register value, or 1 when that value is 0.
+   *       Firmware compatibility is checked by begin().
    * @note When duty-cycle measurement is started, the firmware forces the algorithm to eFastResponse as required by the BMV080 SDK.
    */
   int setMeasureMode(eMeasureMode_t mode);

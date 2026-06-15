@@ -4,7 +4,7 @@
 @brief  Read PM data in continuous mode from DFRobot BMV080 Gravity firmware.
 @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
 @license     The MIT License (MIT)
-@author      DFRobot
+@author      [thdyyl](yuanlong.yu@dfrobot.com)
 @version     V1.0.0
 @date        2026-06-09
 @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity

@@ -36,6 +36,7 @@ The library does **not** include the Bosch BMV080 SDK and does not expose `open`
 - Read PM data and state flags through `sData_t`
 - Configure UART baud rate, parity and stop bits (saved to module NVS)
 - Duty-cycle measurement starts with the `eFastResponse` algorithm as required by the BMV080 SDK
+- Single-register reads include a 3-attempt retry mechanism to improve communication reliability
 
 ## Installation
 
@@ -105,7 +106,8 @@ bool getData(sData_t *data);
  * @retval -1 Invalid parameter.
  * @retval 1 Communication error or firmware returned an error.
  * @retval 2 Data read error or start-state timeout.
- * @retval 3 Firmware version or device information error.
+ * @note If the firmware enters eRunStateError, this function returns the firmware status register value, or 1 when that value is 0.
+ *       Firmware compatibility is checked by begin().
  * @note When duty-cycle measurement is started, the firmware forces the algorithm to eFastResponse as required by the BMV080 SDK.
  */
 int setMeasureMode(eMeasureMode_t mode);

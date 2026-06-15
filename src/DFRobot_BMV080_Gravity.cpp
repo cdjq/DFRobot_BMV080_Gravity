@@ -5,7 +5,7 @@
  * @n      BMV080 sensor parameters through the ESP32 firmware register table.
  * @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
  * @license     The MIT License (MIT)
- * @author      DFRobot
+ * @author      [thdyyl](yuanlong.yu@dfrobot.com)
  * @version     V1.0.0
  * @date        2026-06-09
  * @url         https://github.com/DFRobot/DFRobot_BMV080_Gravity
