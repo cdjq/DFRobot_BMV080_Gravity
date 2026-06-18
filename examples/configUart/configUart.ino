@@ -1,6 +1,6 @@
 /**
- * @file  setBaud.ino
- * @brief  Save UART baud rate, parity and stop-bit settings to BMV080 Gravity firmware.
+ * @file  configUart.ino
+ * @brief  Save UART address, baud rate, parity and stop-bit settings to BMV080 Gravity firmware.
  * @n  This demo configures the UART communication parameters of the module firmware.
  * @n  The settings are stored in ESP32 NVS and take effect after the module restarts in UART Modbus RTU mode.
  * @n  This demo works with both I2C and UART communication; the UART settings configure the module's own serial port.
@@ -15,6 +15,8 @@
 
 // #define BMV080_COMM_UART
 #define BMV080_COMM_I2C
+
+const uint8_t NEW_UART_ADDR = 0x56;    // Valid range: 0x01 to 0xF7, for example 0x56 or 0x58.
 
 #if defined(BMV080_COMM_UART)
 const uint8_t UART_ADDR = 0x57;
@@ -39,8 +41,8 @@ DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 #elif defined(BMV080_COMM_I2C)
 /**
  * I2C_ADDR is selected by A0/A1 pins.
- * UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
- * use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
+ * NEW_UART_ADDR below configures the module's saved UART Modbus RTU address.
+ * After the module restarts in UART mode, use NEW_UART_ADDR as the UART_ADDR value.
  * --------------------------------------
  * |    A0     |    A1     |  Address   |
  * --------------------------------------
@@ -103,6 +105,17 @@ void setup()
   Serial.println("BMV080 Gravity init succeeded.");
 
   /**
+   * Save UART Modbus RTU slave address (holding register 0x0000).
+   * Valid address range: 0x01 to 0xF7. 0x00 is the Modbus broadcast address and is not allowed.
+   */
+  if (sensor.setUartAddress(NEW_UART_ADDR) == 0) {
+    Serial.print("UART address saved as 0x");
+    Serial.println(NEW_UART_ADDR, HEX);
+  } else {
+    Serial.println("Set UART address failed.");
+  }
+
+  /**
    * Save UART baud rate (holding register 0x0001).
    * Available baud rates:
    *   e2400, e4800, e9600, e14400, e19200, e38400, e57600, e115200
@@ -126,6 +139,7 @@ void setup()
 
   /**
    * Read back registers for verification.
+   * Use getUartAddress to read the saved UART Modbus RTU slave address.
    * Use getBaud to read the actual baud rate in bps.
    * Use getUartFormat to read the combined parity/stop-bit register:
    *   high byte: parity field
@@ -133,6 +147,8 @@ void setup()
    *   low byte: stop-bit field
    *     1 = 1 stop bit, 2 = 1.5 stop bits, 3 = 2 stop bits
    */
+  Serial.print("UART Address: 0x");
+  Serial.println(sensor.getUartAddress(), HEX);
   Serial.print("Baud: ");
   Serial.print(sensor.getBaud());
   Serial.println(" bps");

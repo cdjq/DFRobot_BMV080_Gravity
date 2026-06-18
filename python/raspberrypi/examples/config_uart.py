@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''!
-@file  set_baud.py
-@brief  Save UART baud/parity/stop-bit configuration in module NVS.
+@file  config_uart.py
+@brief  Save UART address/baud/parity/stop-bit configuration in module NVS.
 @copyright   Copyright (c) 2026 DFRobot Co.Ltd (http://www.dfrobot.com)
 @license     The MIT License (MIT)
 @author      [thdyyl](yuanlong.yu@dfrobot.com)
@@ -23,9 +23,11 @@ from DFRobot_BMV080_Gravity import (
 
 communication_mode = "I2C"  # "I2C" or "UART"
 
+new_uart_addr = 0x56  # Valid range: 0x01 to 0xF7, for example 0x56 or 0x58.
+
 # I2C_ADDR is selected by A0/A1 pins.
-# UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
-# use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
+# new_uart_addr configures the module's saved UART Modbus RTU address.
+# After the module restarts in UART mode, use new_uart_addr as uart_addr.
 # --------------------------------------
 # |    A0     |    A1     |  Address   |
 # --------------------------------------
@@ -85,12 +87,17 @@ def stop_bit_to_text(stop_bit):
 
 def setup():
   '''!
-  @brief Save UART baud-rate and frame-format settings to module NVS
+  @brief Save UART address, baud-rate and frame-format settings to module NVS
   '''
   while not sensor.begin():
     print("Sensor init failed.")
     time.sleep(1)
   print("BMV080 Gravity init succeeded.")
+
+  if sensor.set_uart_address(new_uart_addr) == 0:
+    print("UART address saved as 0x%02X." % new_uart_addr)
+  else:
+    print("Set UART address failed.")
 
   if sensor.set_baud(sensor.BAUD_115200) == 0:
     print("Baud register saved as 115200.")
@@ -102,6 +109,7 @@ def setup():
   else:
     print("Set UART format failed.")
 
+  print("UART Address: 0x%02X" % sensor.get_uart_address())
   print("Baud: %d bps" % sensor.get_baud())
 
   # get_uart_format() returns a combined parity/stop-bit register:

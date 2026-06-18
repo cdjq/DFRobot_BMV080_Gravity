@@ -34,7 +34,7 @@ The library does **not** include the Bosch BMV080 SDK and does not expose `open`
 - Read PM1.0, PM2.5 and PM10 mass concentration data
 - Configure measurement parameters: integration time, duty-cycle period, algorithm selection, obstruction detection, vibration filtering
 - Read PM data and state flags through `sData_t`
-- Configure UART baud rate, parity and stop bits (saved to module NVS)
+- Configure UART address, baud rate, parity and stop bits (saved to module NVS)
 - Duty-cycle measurement starts with the `eFastResponse` algorithm as required by the BMV080 SDK
 - Single-register reads include a 3-attempt retry mechanism to improve communication reliability
 
@@ -256,6 +256,28 @@ int setMeasurementAlgorithm(eMeasurementAlgorithm_t measurement_algorithm);
 eMeasurementAlgorithm_t getMeasurementAlgorithm(void);
 
 /**
+ * @fn setUartAddress
+ * @brief Set UART Modbus RTU slave address.
+ * @details Save the UART device address to firmware NVS.
+ * @param addr UART Modbus RTU slave address.
+ * @n     Valid range: 0x01 to 0xF7. 0x00 is the Modbus broadcast address and is not allowed.
+ * @return Setting status.
+ * @retval 0 Setting succeeded.
+ * @retval 1 Invalid parameter, communication error or firmware returned an error.
+ * @retval 2 Data read error.
+ * @note The new UART address takes effect after restart. Reconnect with the new address after restart.
+ */
+uint8_t setUartAddress(uint8_t addr);
+
+/**
+ * @fn getUartAddress
+ * @brief Read UART Modbus RTU slave address.
+ * @return Current UART Modbus RTU slave address.
+ * @retval 0 Read failed or register value is invalid.
+ */
+uint8_t getUartAddress(void);
+
+/**
  * @fn setBaud
  * @brief Set UART baud rate.
  * @details Save the UART baud-rate setting to firmware NVS.
@@ -310,7 +332,7 @@ uint16_t getUartFormat(void);
 
 For library debugging, uncomment `ENABLE_DBG` in `src/DFRobot_BMV080_Gravity.h`. Internal failures will then print their error codes through `DBG`.
 
-UART Modbus RTU address changes are intentionally not wrapped by this library. Use a serial/Modbus tool to change the module address, then pass the current address to `DFRobot_BMV080_Gravity_UART`.
+Use `setUartAddress()` to save a new UART Modbus RTU address, then restart the module in UART mode and pass the new address to `DFRobot_BMV080_Gravity_UART`.
 
 ## Examples
 
@@ -318,7 +340,7 @@ UART Modbus RTU address changes are intentionally not wrapped by this library. U
 - `continuousInterrupt`: Continuous measurement with external interrupt. Demonstrates interrupt-driven data collection using the BMV080 INT pin.
 - `dutyCycleRead`: Duty-cycle measurement with parameter configuration. Demonstrates `setIntegrationTime()`, `setDutyCyclingPeriod()`, algorithm and filter settings, and `setMeasureMode()`.
 - `dutyCycleInterrupt`: Duty-cycle measurement with external interrupt. Demonstrates interrupt-driven data collection in periodic measurement mode.
-- `setBaud`: UART baud rate, parity and stop-bit configuration example. Demonstrates `setBaud()` / `getBaud()`, `setUartFormat()` / `getUartFormat()`.
+- `configUart`: UART address, baud rate, parity and stop-bit configuration example. Demonstrates `setUartAddress()` / `getUartAddress()`, `setBaud()` / `getBaud()`, and `setUartFormat()` / `getUartFormat()`.
 
 ## Compatibility
 

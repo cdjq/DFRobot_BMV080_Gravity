@@ -263,6 +263,26 @@ DFRobot_BMV080_Gravity::eMeasurementAlgorithm_t DFRobot_BMV080_Gravity::getMeasu
   return (eMeasurementAlgorithm_t)data;
 }
 
+uint8_t DFRobot_BMV080_Gravity::setUartAddress(uint8_t addr)
+{
+  if ((addr < UART_ADDR_MIN) || (addr > UART_ADDR_MAX)) {
+    return RET_CODE_ERROR;
+  }
+  return writeHoldingValue(REG_HOLDING_UART_ADDR, (uint16_t)addr);
+}
+
+uint8_t DFRobot_BMV080_Gravity::getUartAddress(void)
+{
+  uint16_t data = 0;
+  if (!readHoldingValue(REG_HOLDING_UART_ADDR, data)) {
+    return 0;
+  }
+  if ((data < UART_ADDR_MIN) || (data > UART_ADDR_MAX)) {
+    return 0;
+  }
+  return (uint8_t)data;
+}
+
 uint8_t DFRobot_BMV080_Gravity::setBaud(eBaud_t baud)
 {
   if ((baud < e2400) || (baud > e115200)) {

@@ -35,7 +35,7 @@ Python driver for DFRobot BMV080 Gravity modules on Raspberry Pi. It provides I2
 - Supports continuous and duty-cycle measurement modes
 - Reads PM data and state flags through `DFRobot_BMV080_Gravity_Data`
 - Configures integration time, duty-cycle period, algorithm, obstruction detection and vibration filtering
-- Configures UART baud rate, parity and stop bits saved in module NVS
+- Configures UART address, baud rate, parity and stop bits saved in module NVS
 - Duty-cycle measurement starts with `FAST_RESPONSE` as required by the BMV080 SDK
 
 ## Installation
@@ -76,10 +76,10 @@ To run the duty-cycle example:
 python duty_cycle_read.py
 ```
 
-To configure UART baud rate and frame format:
+To configure UART address, baud rate and frame format:
 
 ```bash
-python set_baud.py
+python config_uart.py
 ```
 
 To run the interrupt examples:
@@ -260,6 +260,25 @@ def get_measurement_algorithm(self):
     @retval FAST_RESPONSE Fast response algorithm
     @retval BALANCED Balanced algorithm
     @retval HIGH_PRECISION High precision algorithm
+    @retval 0 Read failed or register value is invalid
+  '''
+
+def set_uart_address(self, addr):
+  '''!
+    @brief Save UART Modbus RTU slave address to firmware NVS
+    @param addr UART Modbus RTU slave address
+    @n          Valid range: 0x01 to 0xF7. 0x00 is the Modbus broadcast address and is not allowed.
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval 1 Invalid parameter, communication error or firmware returned an error
+    @retval 2 Data read error
+    @note The new UART address takes effect after module restart. Reconnect with the new address after restart.
+  '''
+
+def get_uart_address(self):
+  '''!
+    @brief Read UART Modbus RTU slave address
+    @return Current UART Modbus RTU slave address
     @retval 0 Read failed or register value is invalid
   '''
 

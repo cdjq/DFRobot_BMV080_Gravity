@@ -34,7 +34,7 @@ BMV080 传感器由模块上的 ESP32 固件管理。本库通过以下两种方
 * 该库支持读取 PM1.0、PM2.5 和 PM10 质量浓度数据
 * 该库支持配置测量参数：积分时间、间歇周期、算法选择、遮挡检测、振动滤波
 * 该库支持通过 `sData_t` 读取 PM 数据和状态标志
-* 该库支持配置 UART 波特率、校验位、停止位（保存到模块 NVS）
+* 该库支持配置 UART 地址、波特率、校验位、停止位（保存到模块 NVS）
 * 间歇测量启动时会按 BMV080 SDK 要求使用 `eFastResponse` 算法
 * 所有单寄存器读取内置 3 次重试机制，提升通信可靠性
 
@@ -197,6 +197,22 @@ int setMeasurementAlgorithm(eMeasurementAlgorithm_t measurement_algorithm);
 eMeasurementAlgorithm_t getMeasurementAlgorithm(void);
 
 /**
+ * @fn setUartAddress
+ * @brief 保存 UART Modbus RTU 从机地址到模块 NVS
+ * @note 新的 UART 地址在模块以 UART 模式重启后生效；重启后需使用新地址重新连接。
+ * @param addr UART Modbus RTU 从机地址，有效范围 0x01 到 0xF7；0x00 是 Modbus 广播地址，不允许使用。
+ * @return uint8_t 0 成功, 其他值为参数、通信或固件错误
+ */
+uint8_t setUartAddress(uint8_t addr);
+
+/**
+ * @fn getUartAddress
+ * @brief 读取 UART Modbus RTU 从机地址
+ * @return 当前 UART Modbus RTU 从机地址，读取失败或寄存器值无效返回 0
+ */
+uint8_t getUartAddress(void);
+
+/**
  * @fn setBaud
  * @brief 保存 UART 波特率设置到模块 NVS
  * @note 新的波特率在模块以 UART 模式重启后生效
@@ -232,7 +248,7 @@ uint16_t getUartFormat(void);
 
 库开发调试时，可取消 `src/DFRobot_BMV080_Gravity.h` 中 `ENABLE_DBG` 的注释，内部失败路径会通过 `DBG` 打印错误码。
 
-UART Modbus RTU 地址不再由本库封装配置。如需修改模块地址，请使用串口/Modbus 通信工具修改，然后在 `DFRobot_BMV080_Gravity_UART` 构造函数中传入当前地址。
+使用 `setUartAddress()` 可保存新的 UART Modbus RTU 地址；模块以 UART 模式重启后，在 `DFRobot_BMV080_Gravity_UART` 构造函数中传入新地址。
 
 ## 示例
 
@@ -240,7 +256,7 @@ UART Modbus RTU 地址不再由本库封装配置。如需修改模块地址，�
 - `continuousInterrupt`: 连续测量 + 外部中断。演示通过 BMV080 INT 引脚触发中断来读取数据。
 - `dutyCycleRead`: 间歇测量和参数配置示例。演示 `setIntegrationTime()`、`setDutyCyclingPeriod()`、算法和滤波设置，以及 `setMeasureMode()`。
 - `dutyCycleInterrupt`: 间歇测量 + 外部中断。演示在周期性测量模式下使用中断驱动的数据采集。
-- `setBaud`: UART 波特率、校验位和停止位配置示例。演示 `setBaud()`/`getBaud()`、`setUartFormat()`/`getUartFormat()`。
+- `configUart`: UART 地址、波特率、校验位和停止位配置示例。演示 `setUartAddress()`/`getUartAddress()`、`setBaud()`/`getBaud()`、`setUartFormat()`/`getUartFormat()`。
 
 ## 兼容性
 

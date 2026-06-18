@@ -25,6 +25,8 @@ setVibrationFiltering	KEYWORD2
 getVibrationFiltering	KEYWORD2
 setMeasurementAlgorithm	KEYWORD2
 getMeasurementAlgorithm	KEYWORD2
+setUartAddress	KEYWORD2
+getUartAddress	KEYWORD2
 setBaud	KEYWORD2
 getBaud	KEYWORD2
 setUartFormat	KEYWORD2

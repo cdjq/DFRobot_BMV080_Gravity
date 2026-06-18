@@ -59,7 +59,7 @@ DFRobot_BMV080_Gravity_UART sensor(&Serial1, 9600, UART_ADDR);
 /**
  * I2C_ADDR is selected by A0/A1 pins.
  * UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
- * use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
+ * run the configUart example, restart the module in UART mode, then update UART_ADDR here.
  * --------------------------------------
  * |    A0     |    A1     |  Address   |
  * --------------------------------------

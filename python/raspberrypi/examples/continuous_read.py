@@ -24,8 +24,8 @@ from DFRobot_BMV080_Gravity import (
 communication_mode = "I2C"  # "I2C" or "UART"
 
 # I2C_ADDR is selected by A0/A1 pins.
-# UART_ADDR is the module's current Modbus RTU address. To change the saved UART address,
-# use a serial/Modbus tool, then update UART_ADDR here before using UART mode.
+# uart_addr is the module's current Modbus RTU address. To change the saved UART address,
+# run config_uart.py, restart the module in UART mode, then update uart_addr here.
 # --------------------------------------
 # |    A0     |    A1     |  Address   |
 # --------------------------------------

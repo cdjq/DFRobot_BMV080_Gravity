@@ -35,7 +35,7 @@ BMV080 传感器由模块上的 ESP32 固件管理。本 Python 库通过以下�
 - 支持连续测量和 duty-cycle 测量模式
 - 通过 `DFRobot_BMV080_Gravity_Data` 读取 PM 数据和状态标志
 - 支持配置积分时间、duty-cycle 周期、算法、遮挡检测、振动滤波
-- 支持配置 UART 波特率、校验位、停止位，并保存到模块 NVS
+- 支持配置 UART 地址、波特率、校验位、停止位，并保存到模块 NVS
 - 启动 duty-cycle 测量时，固件会按 BMV080 SDK 要求强制使用 `FAST_RESPONSE` 算法
 
 ## 安装
@@ -76,10 +76,10 @@ python continuous_read.py
 python duty_cycle_read.py
 ```
 
-配置 UART 波特率和帧格式：
+配置 UART 地址、波特率和帧格式：
 
 ```bash
-python set_baud.py
+python config_uart.py
 ```
 
 运行中断示例：
@@ -259,6 +259,25 @@ def get_measurement_algorithm(self):
     @retval FAST_RESPONSE 快速响应算法
     @retval BALANCED 平衡算法
     @retval HIGH_PRECISION 高精度算法
+    @retval 0 读取失败或寄存器值无效
+  '''
+
+def set_uart_address(self, addr):
+  '''!
+    @brief 保存 UART Modbus RTU 从机地址到固件 NVS
+    @param addr UART Modbus RTU 从机地址
+    @n          有效范围 0x01 到 0xF7；0x00 是 Modbus 广播地址，不允许使用。
+    @return 设置状态
+    @retval 0 设置成功
+    @retval 1 参数错误、通信错误或固件返回错误
+    @retval 2 数据读取错误
+    @note 新 UART 地址在模块重启后生效，重启后需使用新地址重新连接。
+  '''
+
+def get_uart_address(self):
+  '''!
+    @brief 读取 UART Modbus RTU 从机地址
+    @return 当前 UART Modbus RTU 从机地址
     @retval 0 读取失败或寄存器值无效
   '''
 

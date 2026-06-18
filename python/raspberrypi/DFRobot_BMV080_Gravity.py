@@ -100,6 +100,7 @@ class DFRobot_BMV080_Gravity(object):
   _REG_INPUT_RUN_STATE = 0x0004
 
   # Holding registers
+  _REG_HOLDING_UART_ADDR = 0x0000
   _REG_HOLDING_BAUDRATE = 0x0001
   _REG_HOLDING_VERIFY_STOP = 0x0002
   _REG_HOLDING_ACTION = 0x0003
@@ -110,6 +111,9 @@ class DFRobot_BMV080_Gravity(object):
   _REG_HOLDING_INTEGRATION_F32_HI = 0x0008
   _REG_HOLDING_INTEGRATION_F32_LO = 0x0009
   _REG_HOLDING_DUTY_PERIOD_S = 0x000A
+
+  _UART_ADDR_MIN = 0x01
+  _UART_ADDR_MAX = 0xF7
 
   # Input flag bits
   _INPUT_FLAG_OBSTRUCTED = 1 << 0
@@ -451,6 +455,32 @@ class DFRobot_BMV080_Gravity(object):
     if value is None:
       return 0
     if value < self.FAST_RESPONSE or value > self.HIGH_PRECISION:
+      return 0
+    return int(value)
+
+  def set_uart_address(self, addr: int) -> int:
+    '''!
+    @brief Save UART Modbus RTU slave address to firmware NVS
+    @param addr UART Modbus RTU slave address
+    @n          Valid range: 0x01 to 0xF7. 0x00 is the Modbus broadcast address and is not allowed.
+    @return Setting status
+    @retval 0 Setting succeeded
+    @retval 1 Invalid parameter, communication error or firmware returned an error
+    @retval 2 Data read error
+    @note The new UART address takes effect after module restart. Reconnect with the new address after restart.
+    '''
+    if addr < self._UART_ADDR_MIN or addr > self._UART_ADDR_MAX:
+      return self.RET_CODE_ERROR
+    return int(self._write_holding_value(self._REG_HOLDING_UART_ADDR, addr))
+
+  def get_uart_address(self) -> int:
+    '''!
+    @brief Read UART Modbus RTU slave address
+    @return Current UART Modbus RTU slave address
+    @retval 0 Read failed or register value is invalid
+    '''
+    value = self._read_holding_value(self._REG_HOLDING_UART_ADDR)
+    if value is None or value < self._UART_ADDR_MIN or value > self._UART_ADDR_MAX:
       return 0
     return int(value)
 

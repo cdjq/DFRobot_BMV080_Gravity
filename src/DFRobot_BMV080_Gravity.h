@@ -355,6 +355,28 @@ public:
   eMeasurementAlgorithm_t getMeasurementAlgorithm(void);
 
   /**
+   * @fn setUartAddress
+   * @brief Set UART Modbus RTU slave address.
+   * @details Save the UART device address to firmware NVS.
+   * @param addr UART Modbus RTU slave address.
+   * @n     Valid range: 0x01 to 0xF7. 0x00 is the Modbus broadcast address and is not allowed.
+   * @return Setting status.
+   * @retval 0 Setting succeeded.
+   * @retval 1 Invalid parameter, communication error or firmware returned an error.
+   * @retval 2 Data read error.
+   * @note The new UART address takes effect after restart. Reconnect with the new address after restart.
+   */
+  uint8_t setUartAddress(uint8_t addr);
+
+  /**
+   * @fn getUartAddress
+   * @brief Read UART Modbus RTU slave address.
+   * @return Current UART Modbus RTU slave address.
+   * @retval 0 Read failed or register value is invalid.
+   */
+  uint8_t getUartAddress(void);
+
+  /**
    * @fn setBaud
    * @brief Set UART baud rate.
    * @details Save the UART baud-rate setting to firmware NVS.
@@ -537,6 +559,7 @@ private:
   static const uint16_t REG_INPUT_PID       = 0x0000U;    ///< Input: Product ID
   static const uint16_t REG_INPUT_RUN_STATE = 0x0004U;    ///< Input: Run state
 
+  static const uint16_t REG_HOLDING_UART_ADDR          = 0x0000U;    ///< Holding: UART Modbus RTU slave address
   static const uint16_t REG_HOLDING_BAUDRATE           = 0x0001U;    ///< Holding: Baud rate enum
   static const uint16_t REG_HOLDING_VERIFY_STOP        = 0x0002U;    ///< Holding: Parity/stop bits
   static const uint16_t REG_HOLDING_ACTION             = 0x0003U;    ///< Holding: Action command
@@ -547,6 +570,9 @@ private:
   static const uint16_t REG_HOLDING_INTEGRATION_F32_HI = 0x0008U;    ///< Holding: Integration time float32 high word
   static const uint16_t REG_HOLDING_INTEGRATION_F32_LO = 0x0009U;    ///< Holding: Integration time float32 low word
   static const uint16_t REG_HOLDING_DUTY_PERIOD_S      = 0x000AU;    ///< Holding: Duty cycle period
+
+  static const uint8_t UART_ADDR_MIN = 0x01U;    ///< Minimum valid Modbus RTU slave address
+  static const uint8_t UART_ADDR_MAX = 0xF7U;    ///< Maximum valid Modbus RTU slave address
 
   static const uint16_t INPUT_FLAG_OBSTRUCTED      = 0x0001U;    ///< Obstruction detected
   static const uint16_t INPUT_FLAG_OUTSIDE_RANGE   = 0x0002U;    ///< Outside measurement range
