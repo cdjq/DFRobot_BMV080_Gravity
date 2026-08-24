@@ -15,6 +15,12 @@ The BMV080 sensor on the module is managed by an ESP32 firmware. This library co
 
 The library does **not** include the Bosch BMV080 SDK and does not expose `open` or `close` APIs — the ESP32 firmware owns the BMV080 sensor handle.
 
+<p align="center">
+  <img src="./resources/images/[SEN0662]V1.0.0  B.png" width="45%">
+   &nbsp; &nbsp; &nbsp;
+  <img src="./resources/images/[SEN0662]V1.0.0  F.png" width="45%">
+</p>
+
 ## Product Link（[https://www.dfrobot.com](https://www.dfrobot.com)）
     SKU:SEN0662
 

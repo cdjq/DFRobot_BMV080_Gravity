@@ -15,6 +15,12 @@ BMV080 传感器由模块上的 ESP32 固件管理。本库通过以下两种方
 
 本库不包含 Bosch BMV080 SDK，也不暴露 `open` 或 `close` API；BMV080 传感器句柄由 ESP32 固件持有。
 
+<p align="center">
+  <img src="./resources/images/[SEN0662]V1.0.0  B.png" width="45%">
+   &nbsp; &nbsp; &nbsp;
+  <img src="./resources/images/[SEN0662]V1.0.0  F.png" width="45%">
+</p>
+
 ## 产品链接（[https://www.dfrobot.com.cn](https://www.dfrobot.com.cn)）
     SKU: SEN0662
 
